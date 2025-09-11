@@ -1,0 +1,11 @@
+[db]
+user = "musicbrainz"
+password = "musicbrainz"
+host = "localhost"
+port = 5432
+name = "musicbrainz"
+sync_db = "musicbrainz-sync"
+
+[meili]
+url = "http://localhost:7700"
+api_key = "masterKey123"

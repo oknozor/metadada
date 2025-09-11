@@ -1,0 +1,20 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing = "0.1.41"
+sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls", "postgres", "uuid"] }
+meilisearch-sdk = "0.29.1"
+config = "0.15.15"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+anyhow = "1.0.73"
+uuid = { version = "1.18.1", features = ["serde"] }
+mbmeta-settings = { path = "crates/mbmeta-settings" }
+mbmeta-model = { path = "crates/mbmeta-model" }
+mbmeta-db = { path = "crates/mbmeta-db" }
+mbmeta-meili = { path = "crates/mbmeta-meili" }
+mbmeta-pipeline = { path = "crates/mbmeta-pipeline" }

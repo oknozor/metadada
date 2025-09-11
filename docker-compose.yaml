@@ -1,0 +1,43 @@
+name: mbdata
+services:
+  db:
+    image: postgres:15
+    container_name: mbdata-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: musicbrainz
+    volumes:
+      - /data/mbslave:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d musicbrainz"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+      start_interval: 1s
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    container_name: meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: "masterKey123"
+    volumes:
+      - /data/meili:/meili_data
+  meili_ui:
+    container_name: k_meili_ui
+    image: riccoxie/meilisearch-ui:latest
+    restart: always
+    networks:
+      - k_network
+    ports:
+      - 7041:24900
+    environment:
+      SINGLETON_MODE: true
+      SINGLETON_HOST: meili:7700
+      SINGLETON_API_KEY: masterKey123
