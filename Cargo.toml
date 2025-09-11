@@ -4,6 +4,7 @@ resolver = "3"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
+futures = "0.3"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 tracing = "0.1.41"
 sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls", "postgres", "uuid"] }
@@ -14,7 +15,7 @@ serde_json = "1.0.143"
 anyhow = "1.0.73"
 uuid = { version = "1.18.1", features = ["serde"] }
 mbmeta-settings = { path = "crates/mbmeta-settings" }
-mbmeta-model = { path = "crates/mbmeta-model" }
 mbmeta-db = { path = "crates/mbmeta-db" }
 mbmeta-meili = { path = "crates/mbmeta-meili" }
 mbmeta-pipeline = { path = "crates/mbmeta-pipeline" }
+indicatif = "0.18.0"

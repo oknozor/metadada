@@ -8,5 +8,4 @@ sqlx.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 mbmeta-settings.workspace = true
-mbmeta-model.workspace = true
 uuid.workspace = true

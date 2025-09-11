@@ -12,3 +12,4 @@ tracing-subscriber.workspace = true
 mbmeta-pipeline.workspace = true
 mbmeta-settings.workspace = true
 mbmeta-meili.workspace = true
+mbmeta-db.workspace = true

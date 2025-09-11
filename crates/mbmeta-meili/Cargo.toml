@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mbmeta-model.workspace = true
 mbmeta-db.workspace = true
 meilisearch-sdk.workspace = true
 serde_json.workspace = true

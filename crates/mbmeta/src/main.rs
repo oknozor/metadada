@@ -1,3 +1,4 @@
+use mbmeta_db::{album::Album, artist::Artist};
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -31,6 +32,9 @@ async fn main() -> anyhow::Result<()> {
 
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
 
+    info!("Setting up MeiliSearch indexes");
+    meili_client.setup_indexes().await?;
+
     let ingestor = Ingestor {
         mb_db,
         sync_db,
@@ -38,7 +42,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("Starting ingestor");
-    ingestor.batch_ingest_artists().await?;
+    ingestor.batch_ingest::<Artist>().await?;
+    ingestor.batch_ingest::<Album>().await?;
 
     Ok(())
 }

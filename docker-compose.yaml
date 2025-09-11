@@ -5,8 +5,8 @@ services:
     container_name: mbdata-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: musicbrainz
+      POSTGRES_PASSWORD: musicbrainz
       POSTGRES_DB: musicbrainz
     volumes:
       - /data/mbslave:/var/lib/postgresql/data
@@ -27,6 +27,8 @@ services:
       - "7700:7700"
     environment:
       MEILI_MASTER_KEY: "masterKey123"
+    networks:
+      - meili_network
     volumes:
       - /data/meili:/meili_data
   meili_ui:
@@ -34,10 +36,13 @@ services:
     image: riccoxie/meilisearch-ui:latest
     restart: always
     networks:
-      - k_network
+      - meili_network
     ports:
       - 7041:24900
     environment:
       SINGLETON_MODE: true
-      SINGLETON_HOST: meili:7700
+      SINGLETON_HOST: 127.0.0.1:7700
       SINGLETON_API_KEY: masterKey123
+
+networks:
+  meili_network:
