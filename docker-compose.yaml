@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: musicbrainz
       POSTGRES_DB: musicbrainz
     volumes:
-      - /data/mbslave:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
@@ -30,7 +30,7 @@ services:
     networks:
       - meili_network
     volumes:
-      - /data/meili:/meili_data
+      - ./data/meili:/meili_data
   meili_ui:
     container_name: k_meili_ui
     image: riccoxie/meilisearch-ui:latest

@@ -26,20 +26,20 @@ pub async fn all_albums(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Album {
     pub id: Uuid,
-    pub oldids: Vec<String>,
-    pub disambiguation: String,
+    pub oldids: Option<Vec<String>>,
+    pub disambiguation: Option<String>,
     pub title: String,
     pub aliases: Vec<String>,
     pub r#type: String,
-    pub secondarytypes: Vec<String>,
-    pub releasedate: String,
-    pub artistid: String,
-    pub artistids: Vec<String>,
-    pub rating: Rating,
-    pub links: Vec<String>,
-    pub genres: Vec<String>,
-    pub images: Vec<Image>,
-    pub releases: Vec<Release>,
+    pub secondarytypes: Option<Vec<String>>,
+    pub releasedate: Option<String>,
+    pub artistid: Option<String>,
+    pub artistids: Option<Vec<String>>,
+    pub rating: Option<Rating>,
+    pub links: Option<Vec<String>>,
+    pub genres: Option<Vec<String>>,
+    pub images: Option<Vec<Image>>,
+    pub releases: Option<Vec<Release>>,
 }
 
 impl Indexable for Album {
@@ -105,44 +105,44 @@ impl Indexable for Album {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Image {
-    pub r#type: String,
-    pub release_gid: String,
-    pub image_id: u64,
+    pub r#type: Option<String>,
+    pub release_gid: Option<String>,
+    pub image_id: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Release {
     pub id: String,
-    pub oldids: Vec<String>,
+    pub oldids: Option<Vec<String>>,
     pub title: String,
-    pub disambiguation: String,
-    pub status: String,
+    pub disambiguation: Option<String>,
+    pub status: Option<String>,
     pub releasedate: Option<String>,
-    pub label: Vec<String>,
-    pub country: Vec<String>,
-    pub media: Vec<Medium>,
-    pub track_count: u32,
-    pub tracks: Vec<Track>,
+    pub label: Option<Vec<String>>,
+    pub country: Option<Vec<String>>,
+    pub media: Option<Vec<Medium>>,
+    pub track_count: Option<u32>,
+    pub tracks: Option<Vec<Track>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Medium {
-    pub format: String,
-    pub name: String,
-    pub position: u32,
+    pub format: Option<String>,
+    pub name: Option<String>,
+    pub position: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Track {
     pub id: String,
-    pub oldids: Vec<String>,
-    pub recordingid: String,
-    pub oldrecordingids: Vec<String>,
-    pub artistid: String,
-    pub trackname: String,
-    pub durationms: u32,
-    pub mediumnumber: u32,
-    pub tracknumber: String,
-    pub trackposition: u32,
+    pub oldids: Option<Vec<String>>,
+    pub recordingid: Option<String>,
+    pub oldrecordingids: Option<Vec<String>>,
+    pub artistid: Option<String>,
+    pub trackname: Option<String>,
+    pub durationms: Option<u32>,
+    pub mediumnumber: Option<u32>,
+    pub tracknumber: Option<String>,
+    pub trackposition: Option<u32>,
 }

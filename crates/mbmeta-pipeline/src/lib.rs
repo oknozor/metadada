@@ -14,8 +14,7 @@ pub struct Ingestor {
 }
 
 impl Ingestor {
-    pub async fn batch_ingest<T: Indexable>(&self) -> Result<()> {
-        let limit = 50_000;
+    pub async fn batch_ingest<T: Indexable>(&self, limit: i64) -> Result<()> {
         let concurrency = 10;
         let last_seen_gid: Option<Uuid> = Some(Uuid::nil());
         let total_artists: i64 = T::count(&self.mb_db).await?;

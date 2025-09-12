@@ -1,4 +1,4 @@
-use mbmeta_db::{album::Album, artist::Artist};
+use mbmeta_db::album::Album;
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -42,8 +42,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("Starting ingestor");
-    ingestor.batch_ingest::<Artist>().await?;
-    ingestor.batch_ingest::<Album>().await?;
+    //ingestor.batch_ingest::<Artist>(50_000).await?;
+    ingestor.batch_ingest::<Album>(10_000).await?;
 
     Ok(())
 }
