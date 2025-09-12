@@ -8,3 +8,6 @@ name = "musicbrainz"
 [meili]
 url = "http://localhost:7700"
 api_key = "masterKey123"
+
+[api]
+port = 3000

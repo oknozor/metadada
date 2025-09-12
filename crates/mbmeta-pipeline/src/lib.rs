@@ -8,8 +8,7 @@ use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct Ingestor {
-    pub mb_db: PgPool,
-    pub sync_db: PgPool,
+    pub db: PgPool,
     pub meili_client: MeiliClient,
 }
 
@@ -17,7 +16,7 @@ impl Ingestor {
     pub async fn batch_ingest<T: Indexable>(&self, limit: i64) -> Result<()> {
         let concurrency = 10;
         let last_seen_gid: Option<Uuid> = Some(Uuid::nil());
-        let total_artists: i64 = T::count(&self.mb_db).await?;
+        let total_artists: i64 = T::count(&self.db).await?;
         let pb = ProgressBar::new(total_artists as u64);
         pb.set_style(
             ProgressStyle::with_template(
@@ -30,7 +29,7 @@ impl Ingestor {
         let stream = stream::unfold(last_seen_gid, |last_gid| async move {
             let this = self.clone();
 
-            match T::query_all(last_gid, limit, &this.mb_db).await {
+            match T::query_all(last_gid, limit, &this.db).await {
                 Ok(Data { items }) => {
                     let artists: Vec<T> = match items {
                         Some(a) if !a.is_empty() => a.0,
@@ -81,12 +80,12 @@ impl Ingestor {
     async fn ingest<T: Indexable>(&self, items: &[T]) -> Result<()> {
         let ids: Vec<Uuid> = items.iter().map(|a| a.id()).collect();
 
-        T::insert_sync_ids(&ids[..], &self.sync_db).await?;
+        T::insert_sync_ids(&ids[..], &self.db).await?;
         let taskinfo = self.meili_client.add_item(items).await?;
 
         match self.meili_client.wait_for_task(taskinfo).await? {
             Status::Success => {
-                T::update_syncs(&ids[..], &self.sync_db).await?;
+                T::update_syncs(&ids[..], &self.db).await?;
                 info!("Batch ingested successfully ({} {})", ids.len(), T::INDEX);
             }
             Status::Failure => {

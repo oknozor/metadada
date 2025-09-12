@@ -7,6 +7,12 @@ use serde::Deserialize;
 pub struct Settings {
     pub db: DBSettings,
     pub meili: MeiliSettings,
+    pub api: ApiSettings,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct ApiSettings {
+    pub port: u16,
 }
 
 #[derive(Debug, Deserialize, Default)]

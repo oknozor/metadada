@@ -49,9 +49,8 @@ pub struct Data<T: Indexable> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Rating {
-    #[serde(rename = "Count")]
     pub count: Option<u32>,
-    #[serde(rename = "Value")]
     pub value: Option<f64>,
 }

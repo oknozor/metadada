@@ -16,8 +16,7 @@ pub struct Artist {
     pub artistaliases: Vec<String>,
     pub status: String,
     pub disambiguation: String,
-    #[serde(rename = "type")]
-    pub type_field: Option<String>,
+    pub r#type: Option<String>,
     pub rating: Rating,
     pub links: Vec<String>,
     pub genres: Vec<String>,
@@ -69,7 +68,7 @@ impl Indexable for Artist {
         Box::pin(async move {
             sqlx::query(
                 r#"
-                INSERT INTO artists (id)
+                INSERT INTO artists_sync (id)
                 VALUES (UNNEST($1::uuid[]))
                 ON CONFLICT (id) DO NOTHING;
                 "#,
@@ -88,7 +87,7 @@ impl Indexable for Artist {
         Box::pin(async move {
             sqlx::query(
                 r#"
-                UPDATE artists
+                UPDATE artists_sync
                 SET sync = TRUE
                 WHERE id = ANY($1::uuid[])
                 "#,

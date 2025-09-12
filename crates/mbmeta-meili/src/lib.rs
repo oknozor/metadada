@@ -5,7 +5,7 @@ use meilisearch_sdk::{client::Client, errors::Error, task_info::TaskInfo};
 
 #[derive(Clone)]
 pub struct MeiliClient {
-    client: Client,
+    pub client: Client,
 }
 
 pub enum Status {
