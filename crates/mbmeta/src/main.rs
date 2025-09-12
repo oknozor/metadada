@@ -1,4 +1,4 @@
-use mbmeta_db::album::Album;
+use mbmeta_db::{album::Album, artist::Artist};
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -21,13 +21,13 @@ async fn main() -> anyhow::Result<()> {
     info!("Connecting to musicbrainz database");
     let mb_db = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&config.musicbrainz_db_url())
+        .connect(&config.db_url())
         .await?;
 
     info!("Connecting to sync database");
     let sync_db = PgPoolOptions::new()
         .max_connections(5)
-        .connect(&config.sync_db_url())
+        .connect(&config.db_url())
         .await?;
 
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
@@ -42,7 +42,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     info!("Starting ingestor");
-    //ingestor.batch_ingest::<Artist>(50_000).await?;
+    ingestor.batch_ingest::<Artist>(50_000).await?;
     ingestor.batch_ingest::<Album>(10_000).await?;
 
     Ok(())

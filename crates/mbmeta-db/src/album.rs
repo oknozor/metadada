@@ -69,14 +69,14 @@ impl Indexable for Album {
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>> {
         Box::pin(async move {
-            sqlx::query(
+            sqlx::query!(
                 r#"
-                INSERT INTO releases (id)
+                INSERT INTO releases_sync (id)
                 VALUES (UNNEST($1::uuid[]))
                 ON CONFLICT (id) DO NOTHING;
                 "#,
+                ids
             )
-            .bind(ids)
             .execute(db)
             .await?;
             Ok(())
@@ -88,14 +88,14 @@ impl Indexable for Album {
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>> {
         Box::pin(async move {
-            sqlx::query(
+            sqlx::query!(
                 r#"
-                UPDATE releases
+                UPDATE releases_sync
                 SET sync = TRUE
                 WHERE id = ANY($1::uuid[])
                 "#,
+                ids
             )
-            .bind(ids)
             .execute(db)
             .await?;
             Ok(())

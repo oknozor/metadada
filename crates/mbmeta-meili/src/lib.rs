@@ -56,9 +56,9 @@ impl MeiliClient {
             .await?;
 
         if task.is_failure() {
-            return Ok(Status::Failure);
+            Ok(Status::Failure)
         } else if task.is_success() {
-            return Ok(Status::Success);
+            Ok(Status::Success)
         } else {
             unreachable!("unexpected task status")
         }

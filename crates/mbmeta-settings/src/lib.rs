@@ -22,7 +22,6 @@ pub struct DBSettings {
     pub host: String,
     pub port: u16,
     pub name: String,
-    pub sync_db: String,
 }
 
 impl Settings {
@@ -47,17 +46,10 @@ impl Settings {
         config.build()?.try_deserialize()
     }
 
-    pub fn musicbrainz_db_url(&self) -> String {
+    pub fn db_url(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
             self.db.user, self.db.password, self.db.host, self.db.port, self.db.name
-        )
-    }
-
-    pub fn sync_db_url(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.db.user, self.db.password, self.db.host, self.db.port, self.db.sync_db
         )
     }
 }
