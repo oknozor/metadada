@@ -4,6 +4,7 @@ use autometrics::autometrics;
 use axum::Extension;
 use axum::extract::Json;
 use axum_macros::debug_handler;
+use mbmeta_db::album::Album;
 use meilisearch_sdk::client::Client;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -41,11 +42,11 @@ pub async fn search_fingerprint(
             .index("albums")
             .search()
             .with_filter(&format!("id IN [{ids}]"))
-            .execute::<AlbumInfo>()
+            .execute::<Album>()
             .await?
             .hits
             .into_iter()
-            .map(|r| r.result)
+            .map(|r| r.result.into())
             .collect::<Vec<_>>(),
     ))
 }

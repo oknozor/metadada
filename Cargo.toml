@@ -20,6 +20,7 @@ mbmeta-meili = { path = "crates/mbmeta-meili" }
 mbmeta-pipeline = { path = "crates/mbmeta-pipeline" }
 mbmeta-api = { path = "crates/mbmeta-api" }
 indicatif = "0.18.0"
+url = "2"
 
 axum = { version = "0.8.1" }
 utoipa-axum = { version = "0.2" }

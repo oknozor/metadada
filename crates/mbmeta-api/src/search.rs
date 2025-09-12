@@ -1,10 +1,12 @@
+use crate::Items;
 use crate::error::AppResult;
-use crate::{AlbumInfo, ArtistInfo, Items};
 use autometrics::autometrics;
 use axum::extract::Query;
 use axum::{Extension, Json};
 use axum_macros::debug_handler;
 use futures::join;
+use mbmeta_db::album::Album;
+use mbmeta_db::artist::Artist;
 use meilisearch_sdk::client::Client;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -66,11 +68,11 @@ async fn search_artists(client: &Client, query: &str, limit: usize) -> AppResult
             .search()
             .with_limit(limit)
             .with_query(query)
-            .execute::<ArtistInfo>()
+            .execute::<Artist>()
             .await?
             .hits
             .into_iter()
-            .map(|r| Items::Artist(r.result))
+            .map(|r| Items::Artist(r.result.into()))
             .collect::<Vec<_>>(),
     ))
 }
@@ -82,11 +84,11 @@ async fn search_albums(client: &Client, query: &str, limit: usize) -> AppResult<
             .search()
             .with_limit(limit)
             .with_query(query)
-            .execute::<AlbumInfo>()
+            .execute::<Album>()
             .await?
             .hits
             .into_iter()
-            .map(|r| Items::Album(r.result))
+            .map(|r| Items::Album(r.result.into()))
             .collect::<Vec<_>>(),
     ))
 }
