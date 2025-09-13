@@ -88,7 +88,7 @@ Also be aware that automatic update using the [MusicBrainz Live Data Feed](https
 ## Todos
 - [ ] mbslave optimization (ignore unused tables)
 - [ ] pg_notify listener for reindexing
-- [ ] preindexing image and link transformation
+- [x] preindexing image and link transformation
 - [ ] implement `includeTracks` param using meilisearch `attributesToRetrieve`
 - [ ] setup ranking on meilisearch indexes
 - [ ] implement /recent endpoints

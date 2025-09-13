@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
-use mbmeta_db::{Data, Indexable};
+use mbmeta_db::{Data, queryables::QueryAble};
 use mbmeta_meili::{MeiliClient, Status};
 use sqlx::{PgPool, types::Uuid};
 use tracing::{error, info};
@@ -13,7 +13,7 @@ pub struct Ingestor {
 }
 
 impl Ingestor {
-    pub async fn batch_ingest<T: Indexable>(&self, limit: i64) -> Result<()> {
+    pub async fn batch_ingest<T: QueryAble>(&self, limit: i64) -> Result<()> {
         let concurrency = 10;
         let last_seen_gid: Option<Uuid> = Some(Uuid::nil());
         let total_artists: i64 = T::count(&self.db).await?;
@@ -31,14 +31,14 @@ impl Ingestor {
 
             match T::query_all(last_gid, limit, &this.db).await {
                 Ok(Data { items }) => {
-                    let artists: Vec<T> = match items {
+                    let items: Vec<T> = match items {
                         Some(a) if !a.is_empty() => a.0,
                         _ => return None,
                     };
 
-                    let next_gid = artists.last().map(|a| a.id());
+                    let next_gid = items.last().map(|a| a.id());
 
-                    Some((Ok((this, artists)), next_gid))
+                    Some((Ok((this, items)), next_gid))
                 }
                 Err(e) => Some((Err(e), last_gid)),
             }
@@ -49,11 +49,11 @@ impl Ingestor {
                 let pb = pb.clone();
                 async move {
                     match res {
-                        Ok((this, artists)) => {
-                            let batch_count = artists.len() as u64;
-                            let last_gid = artists.last().map(|a| a.id());
+                        Ok((this, items)) => {
+                            let batch_count = items.len() as u64;
+                            let last_gid = items.last().map(|a| a.id());
 
-                            if let Err(err) = this.ingest(&artists).await {
+                            if let Err(err) = this.ingest(items).await {
                                 error!(
                                     "Ingest failed for {} batch ending at {:?}: {:?}",
                                     T::INDEX,
@@ -77,7 +77,7 @@ impl Ingestor {
         Ok(())
     }
 
-    async fn ingest<T: Indexable>(&self, items: &[T]) -> Result<()> {
+    async fn ingest<T: QueryAble>(&self, items: Vec<T>) -> Result<()> {
         let ids: Vec<Uuid> = items.iter().map(|a| a.id()).collect();
 
         T::insert_sync_ids(&ids[..], &self.db).await?;

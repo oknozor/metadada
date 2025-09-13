@@ -4,7 +4,6 @@ use autometrics::autometrics;
 use axum::extract::Path;
 use axum::{Extension, Json};
 use axum_macros::debug_handler;
-use mbmeta_db::album::Album;
 use meilisearch_sdk::client::Client;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
@@ -29,11 +28,11 @@ pub async fn by_id(
             .index("albums")
             .search()
             .with_filter(&format!("id = '{mbid}'"))
-            .execute::<Album>()
+            .execute::<AlbumInfo>()
             .await?
             .hits
             .into_iter()
-            .map(|r| r.result.into())
+            .map(|r| r.result)
             .next()
             .ok_or(AppError::NotFound)?,
     ))

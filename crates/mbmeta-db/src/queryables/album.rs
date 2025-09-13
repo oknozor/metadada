@@ -1,6 +1,9 @@
 use std::pin::Pin;
 
-use crate::{Data, Indexable, Rating};
+use crate::indexables::album::AlbumInfo;
+use crate::queryables::QueryAble;
+use crate::queryables::artist::Artist;
+use crate::{Data, Rating};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
@@ -40,9 +43,12 @@ pub struct Album {
     pub genres: Option<Vec<String>>,
     pub images: Option<Vec<Image>>,
     pub releases: Option<Vec<Release>>,
+    pub artists: Option<Vec<Artist>>,
 }
 
-impl Indexable for Album {
+impl QueryAble for Album {
+    type Indexable = AlbumInfo;
+
     const INDEX: &'static str = "albums";
     const ID: &'static str = "id";
 
@@ -100,6 +106,10 @@ impl Indexable for Album {
             .await?;
             Ok(())
         })
+    }
+
+    fn to_model(self) -> Self::Indexable {
+        AlbumInfo::from(self)
     }
 }
 

@@ -1555,6 +1555,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "url",
+ "utoipa",
+ "utoipa-axum",
  "uuid",
 ]
 

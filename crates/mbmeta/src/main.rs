@@ -4,7 +4,7 @@ use autometrics::prometheus_exporter;
 use axum::{Extension, routing::get};
 use clap::Parser;
 use mbmeta_api::ApiDoc;
-use mbmeta_db::{album::Album, artist::Artist};
+use mbmeta_db::queryables::{album::Album, artist::Artist};
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli {
         Cli::Init => initial_indexing(meili_client, db).await?,
-        Cli::Serve => serve(&config, meili_client).await?,
+        Cli::Serve => serve(config, meili_client).await?,
     }
     Ok(())
 }
@@ -59,7 +59,7 @@ async fn serve(config: &Settings, meili_client: MeiliClient) -> anyhow::Result<(
         .layer(Extension(meili_client.client));
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest("/api/v1", app)
+        .nest("/api/v0.4", app)
         .split_for_parts();
 
     let router = router

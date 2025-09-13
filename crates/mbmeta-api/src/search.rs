@@ -1,12 +1,10 @@
-use crate::Items;
 use crate::error::AppResult;
+use crate::{AlbumInfo, ArtistInfo, ItemInfo, Items};
 use autometrics::autometrics;
 use axum::extract::Query;
 use axum::{Extension, Json};
 use axum_macros::debug_handler;
 use futures::join;
-use mbmeta_db::album::Album;
-use mbmeta_db::artist::Artist;
 use meilisearch_sdk::client::Client;
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -48,49 +46,72 @@ pub async fn search(
     Extension(client): Extension<Client>,
 ) -> AppResult<Json<Vec<Items>>> {
     match q.r#type {
-        QueryType::Artist => search_artists(&client, &q.query, 10).await,
-        QueryType::Album => search_albums(&client, &q.query, 10).await,
+        QueryType::Artist => search_artists(&client, &q.query, 10)
+            .await
+            .map(|artists| artists.into_iter().map(Items::Artist).collect::<Vec<_>>())
+            .map(Json),
+        QueryType::Album => search_albums(&client, &q.query, 10)
+            .await
+            .map(|albums| albums.into_iter().map(Items::Album).collect::<Vec<_>>())
+            .map(Json),
         QueryType::All => {
             let artists = search_artists(&client, &q.query, 5);
             let albums = search_albums(&client, &q.query, 5);
             let (artists, albums) = join!(artists, albums);
-            let mut all = artists?;
-            all.extend(albums?.0);
-            Ok(all)
+            let mut all = artists?
+                .into_iter()
+                .map(|artist| {
+                    Items::Item(Box::new(ItemInfo {
+                        score: 1,
+                        artist: Some(artist),
+                        album: None,
+                    }))
+                })
+                .collect::<Vec<_>>();
+
+            let albums = albums?
+                .into_iter()
+                .map(|album| {
+                    Items::Item(Box::new(ItemInfo {
+                        score: 1,
+                        artist: None,
+                        album: Some(album),
+                    }))
+                })
+                .collect::<Vec<_>>();
+
+            all.extend(albums);
+            Ok(Json(all))
         }
     }
 }
 
-async fn search_artists(client: &Client, query: &str, limit: usize) -> AppResult<Json<Vec<Items>>> {
-    Ok(Json(
-        client
-            .index("artists")
-            .search()
-            .with_limit(limit)
-            .with_query(query)
-            .execute::<Artist>()
-            .await?
-            .hits
-            .into_iter()
-            .map(|r| Items::Artist(r.result.into()))
-            .collect::<Vec<_>>(),
-    ))
+async fn search_artists(client: &Client, query: &str, limit: usize) -> AppResult<Vec<ArtistInfo>> {
+    Ok(client
+        .index("artists")
+        .search()
+        .with_limit(limit)
+        .with_query(query)
+        .execute::<ArtistInfo>()
+        .await?
+        .hits
+        .into_iter()
+        .map(|r| r.result)
+        .collect::<Vec<_>>())
 }
 
-async fn search_albums(client: &Client, query: &str, limit: usize) -> AppResult<Json<Vec<Items>>> {
-    Ok(Json(
-        client
-            .index("albums")
-            .search()
-            .with_limit(limit)
-            .with_query(query)
-            .execute::<Album>()
-            .await?
-            .hits
-            .into_iter()
-            .map(|r| Items::Album(r.result.into()))
-            .collect::<Vec<_>>(),
-    ))
+async fn search_albums(client: &Client, query: &str, limit: usize) -> AppResult<Vec<AlbumInfo>> {
+    Ok(client
+        .index("albums")
+        .search()
+        .with_limit(limit)
+        .with_query(query)
+        .execute::<AlbumInfo>()
+        .await?
+        .hits
+        .into_iter()
+        .map(|r| r.result)
+        .collect::<Vec<_>>())
 }
 
 pub(crate) fn router() -> OpenApiRouter {

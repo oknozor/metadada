@@ -29,7 +29,7 @@ pub struct RecentQuery {
 )]
 #[autometrics]
 pub async fn get_recently_updated_artists(
-    Query(q): Query<RecentQuery>,
+    Query(_q): Query<RecentQuery>,
 ) -> AppResult<Json<Vec<Items>>> {
     todo!()
 }
@@ -48,7 +48,7 @@ pub async fn get_recently_updated_artists(
 )]
 #[autometrics]
 pub async fn get_recently_updated_albums(
-    Query(q): Query<RecentQuery>,
+    Query(_q): Query<RecentQuery>,
 ) -> AppResult<Json<Vec<Items>>> {
     todo!()
 }

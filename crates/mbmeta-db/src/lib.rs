@@ -1,39 +1,11 @@
-use std::pin::Pin;
-
 use mbmeta_settings::Settings;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, types::Json};
-use uuid::Uuid;
 
-pub mod album;
-pub mod artist;
+use crate::queryables::QueryAble;
 
-pub trait Indexable: DeserializeOwned + Serialize + Send + Sync + Sized {
-    const INDEX: &'static str;
-    const ID: &'static str;
-
-    fn id(&self) -> Uuid;
-
-    fn query_all<'a>(
-        last_seen_gid: Option<Uuid>,
-        limit: i64,
-        db: &'a PgPool,
-    ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>>;
-
-    fn count<'a>(
-        db: &'a PgPool,
-    ) -> Pin<Box<dyn Future<Output = Result<i64, sqlx::Error>> + Send + 'a>>;
-
-    fn insert_sync_ids<'a>(
-        ids: &'a [Uuid],
-        db: &'a PgPool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
-
-    fn update_syncs<'a>(
-        ids: &'a [Uuid],
-        db: &'a PgPool,
-    ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
-}
+pub mod indexables;
+pub mod queryables;
 
 pub async fn connect(config: &Settings) -> Result<sqlx::PgPool, sqlx::Error> {
     let url = format!(
@@ -44,7 +16,7 @@ pub async fn connect(config: &Settings) -> Result<sqlx::PgPool, sqlx::Error> {
 }
 
 #[derive(FromRow)]
-pub struct Data<T: Indexable> {
+pub struct Data<T: QueryAble> {
     pub items: Option<Json<Vec<T>>>,
 }
 

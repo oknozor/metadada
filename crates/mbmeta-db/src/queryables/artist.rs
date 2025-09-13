@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{Data, Indexable, Rating};
+use crate::{Data, QueryAble, Rating, indexables::artist::ArtistInfo};
 use sqlx::types::Json;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,7 +39,8 @@ pub async fn all_artists(
         .await
 }
 
-impl Indexable for Artist {
+impl QueryAble for Artist {
+    type Indexable = ArtistInfo;
     const INDEX: &'static str = "artists";
     const ID: &'static str = "id";
 
@@ -97,5 +98,9 @@ impl Indexable for Artist {
             .await?;
             Ok(())
         })
+    }
+
+    fn to_model(self) -> Self::Indexable {
+        ArtistInfo::from(self)
     }
 }

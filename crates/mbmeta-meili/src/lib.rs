@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use mbmeta_db::{Indexable, album::Album, artist::Artist};
+use mbmeta_db::queryables::{QueryAble, album::Album, artist::Artist};
 use meilisearch_sdk::{client::Client, errors::Error, task_info::TaskInfo};
 
 #[derive(Clone)]
@@ -35,13 +35,18 @@ impl MeiliClient {
         Ok(())
     }
 
-    pub async fn add_item<T>(&self, documents: &[T]) -> Result<TaskInfo, Error>
+    pub async fn add_item<T>(&self, documents: Vec<T>) -> Result<TaskInfo, Error>
     where
-        T: Indexable,
+        T: QueryAble,
     {
+        let documents = documents
+            .into_iter()
+            .map(QueryAble::to_model)
+            .collect::<Vec<_>>();
+
         self.client
             .index(T::INDEX)
-            .add_documents(documents, Some(T::ID))
+            .add_documents(&documents, Some(T::ID))
             .await
     }
 

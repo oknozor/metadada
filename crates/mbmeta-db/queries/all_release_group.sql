@@ -64,6 +64,39 @@ SELECT
          WHERE artist_credit_name.artist_credit = release_group.artist_credit
            AND artist_credit_name.position = 0
       ) AS ArtistIds,
+      (
+        SELECT json_agg(row_to_json(artist_data))
+        FROM (
+          SELECT
+            a.gid AS Id,
+            a.name AS Name,
+            a.sort_name AS SortName,
+            a.comment AS Disambiguation,
+            area.name AS Area
+          FROM artist a
+                 LEFT JOIN area ON a.area = area.id
+          WHERE a.gid = ANY (
+            array(
+              SELECT DISTINCT artist.gid
+                FROM artist
+                       JOIN artist_credit_name on artist.id = artist_credit_name.artist
+                       JOIN track on track.artist_credit = artist_credit_name.artist_credit
+                       JOIN medium on track.medium = medium.id
+                       JOIN release on medium.release = release.id
+               WHERE release.release_group = release_group.id
+                 AND artist_credit_name.position = 0
+
+               UNION
+
+              SELECT artist.gid
+                FROM artist
+                       JOIN artist_credit_name ON artist_credit_name.artist = artist.id
+               WHERE artist_credit_name.artist_credit = release_group.artist_credit
+                 AND artist_credit_name.position = 0
+            )
+          )
+        ) artist_data
+      ) AS Artists,
       json_build_object(
         'Count', COALESCE(release_group_meta.rating_count, 0),
         'Value', release_group_meta.rating::decimal / 10
