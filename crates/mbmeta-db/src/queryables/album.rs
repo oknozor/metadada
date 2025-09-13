@@ -156,3 +156,23 @@ pub struct Track {
     pub tracknumber: Option<String>,
     pub trackposition: Option<u32>,
 }
+
+#[cfg(test)]
+mod test {
+    use sqlx::postgres::PgPoolOptions;
+    use uuid::Uuid;
+
+    use crate::queryables::{QueryAble, artist::Artist};
+
+    #[tokio::test]
+    async fn test() {
+        let db = PgPoolOptions::new()
+            .max_connections(5)
+            .connect("postgres://musicbrainz:musicbrainz@localhost:5432/musicbrainz")
+            .await
+            .unwrap();
+
+        let a = Artist::query_all(Some(Uuid::nil()), 3, &db).await.unwrap();
+        println!("{:?}", a);
+    }
+}

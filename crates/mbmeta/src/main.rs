@@ -59,7 +59,7 @@ async fn serve(config: &Settings, meili_client: MeiliClient) -> anyhow::Result<(
         .layer(Extension(meili_client.client));
 
     let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
-        .nest("/api/v0.4", app)
+        .nest("/api/v1", app)
         .split_for_parts();
 
     let router = router
@@ -81,7 +81,7 @@ async fn initial_indexing(meili_client: MeiliClient, db: PgPool) -> anyhow::Resu
 
     info!("Starting ingestor");
     // ingestor.batch_ingest::<Artist>(50_000).await?;
-    ingestor.batch_ingest::<Album>(10_000).await?;
+    ingestor.batch_ingest::<Album>(5_000).await?;
 
     Ok(())
 }

@@ -82,7 +82,12 @@ impl From<Album> for AlbumInfo {
                 .map(|releases| releases.into_iter().map(Into::into).collect()),
             releasestatuses: None,
             overview: None,
-            artists: vec![],
+            artists: value
+                .artists
+                .unwrap_or_default()
+                .into_iter()
+                .map(ArtistLightInfo::from)
+                .collect::<Vec<_>>(),
         }
     }
 }
@@ -214,6 +219,18 @@ pub struct ArtistLightInfo {
     pub links: Vec<Link>,
     pub overview: Option<String>,
     pub genres: Vec<String>,
+    #[serde(default = "default_images")]
+    pub images: Option<Vec<ImageInfo>>,
+    #[serde(default = "default_albums")]
+    pub albums: Option<Vec<String>>,
+}
+
+fn default_images() -> Option<Vec<ImageInfo>> {
+    Some(vec![])
+}
+
+fn default_albums() -> Option<Vec<String>> {
+    Some(vec![])
 }
 
 impl From<Artist> for ArtistLightInfo {
@@ -239,30 +256,8 @@ impl From<Artist> for ArtistLightInfo {
                 .collect(),
             genres: value.genres,
             overview: None,
+            images: Some(vec![]),
+            albums: Some(vec![]),
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use sqlx::postgres::PgPoolOptions;
-    use uuid::Uuid;
-
-    use crate::queryables::{
-        QueryAble,
-        album::{Album, all_albums},
-        artist::Artist,
-    };
-
-    #[tokio::test]
-    async fn test() {
-        let db = PgPoolOptions::new()
-            .max_connections(5)
-            .connect("postgres://musicbrainz:musicbrainz@localhost:5432/musicbrainz")
-            .await
-            .unwrap();
-
-        let a = Album::query_all(Some(Uuid::nil()), 3, &db).await.unwrap();
-        println!("{:?}", a);
     }
 }

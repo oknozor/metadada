@@ -20,6 +20,19 @@ pub struct Artist {
     pub rating: Rating,
     pub links: Vec<String>,
     pub genres: Vec<String>,
+    pub albums: Option<Vec<AlbumLight>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AlbumLight {
+    pub id: String,
+    pub oldids: Vec<String>,
+    pub title: String,
+    pub r#type: String,
+    pub releasestatuses: Vec<String>,
+    pub secondarytypes: Vec<String>,
+    pub releasedate: Option<String>,
+    pub rating: Option<Rating>,
 }
 
 pub async fn count_artists(db: &PgPool) -> Result<i64, sqlx::Error> {

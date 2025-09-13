@@ -10,6 +10,23 @@ FROM (
     ) AS OldIds,
     release_group.comment AS Disambiguation,
     release_group.name AS Title,
+    artist.gid as ArtistId,
+    array(
+      SELECT DISTINCT artist.gid
+      FROM artist
+      JOIN artist_credit_name ON artist_credit_name.artist = artist.id
+      WHERE artist_credit_name.artist_credit = release_group.artist_credit
+        AND artist_credit_name.position = 0
+      UNION
+      SELECT DISTINCT artist.gid
+      FROM artist
+      JOIN artist_credit_name ON artist_credit_name.artist = artist.id
+      JOIN track ON track.artist_credit = artist_credit_name.artist_credit
+      JOIN medium ON track.medium = medium.id
+      JOIN release ON medium.release = release.id
+      WHERE release.release_group = release_group.id
+        AND artist_credit_name.position = 0
+    ) AS ArtistIds,
     array(
       SELECT name
       FROM release_group_alias
