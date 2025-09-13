@@ -220,7 +220,7 @@ impl From<Artist> for ArtistLightInfo {
     fn from(value: Artist) -> Self {
         Self {
             id: value.id.to_string(),
-            oldids: value.oldids,
+            oldids: value.oldids.unwrap_or_default(),
             artistname: value.artistname,
             sortname: value.sortname,
             artistaliases: value.artistaliases,
@@ -240,5 +240,29 @@ impl From<Artist> for ArtistLightInfo {
             genres: value.genres,
             overview: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use sqlx::postgres::PgPoolOptions;
+    use uuid::Uuid;
+
+    use crate::queryables::{
+        QueryAble,
+        album::{Album, all_albums},
+        artist::Artist,
+    };
+
+    #[tokio::test]
+    async fn test() {
+        let db = PgPoolOptions::new()
+            .max_connections(5)
+            .connect("postgres://musicbrainz:musicbrainz@localhost:5432/musicbrainz")
+            .await
+            .unwrap();
+
+        let a = Album::query_all(Some(Uuid::nil()), 3, &db).await.unwrap();
+        println!("{:?}", a);
     }
 }

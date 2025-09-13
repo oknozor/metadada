@@ -10,7 +10,7 @@ use sqlx::types::Json;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artist {
     pub id: uuid::Uuid,
-    pub oldids: Vec<String>,
+    pub oldids: Option<Vec<String>>,
     pub artistname: String,
     pub sortname: String,
     pub artistaliases: Vec<String>,

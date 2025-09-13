@@ -15,7 +15,7 @@ pub async fn connect(config: &Settings) -> Result<sqlx::PgPool, sqlx::Error> {
     PgPool::connect(&url).await
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 pub struct Data<T: QueryAble> {
     pub items: Option<Json<Vec<T>>>,
 }

@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{fmt::Debug, pin::Pin};
 
 use serde::{Serialize, de::DeserializeOwned};
 use sqlx::PgPool;
@@ -7,8 +7,8 @@ use uuid::Uuid;
 pub mod album;
 pub mod artist;
 
-pub trait QueryAble: DeserializeOwned + Send + Sync {
-    type Indexable: From<Self> + Send + Sync + Serialize;
+pub trait QueryAble: DeserializeOwned + Send + Sync + Debug {
+    type Indexable: From<Self> + Send + Sync + Serialize + Debug;
     const INDEX: &'static str;
     const ID: &'static str;
 

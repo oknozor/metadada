@@ -4,7 +4,7 @@ use autometrics::prometheus_exporter;
 use axum::{Extension, routing::get};
 use clap::Parser;
 use mbmeta_api::ApiDoc;
-use mbmeta_db::queryables::{album::Album, artist::Artist};
+use mbmeta_db::queryables::album::Album;
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -80,7 +80,7 @@ async fn initial_indexing(meili_client: MeiliClient, db: PgPool) -> anyhow::Resu
     let ingestor = Ingestor { db, meili_client };
 
     info!("Starting ingestor");
-    ingestor.batch_ingest::<Artist>(50_000).await?;
+    // ingestor.batch_ingest::<Artist>(50_000).await?;
     ingestor.batch_ingest::<Album>(10_000).await?;
 
     Ok(())

@@ -42,7 +42,7 @@ impl From<Artist> for ArtistInfo {
     fn from(value: Artist) -> Self {
         Self {
             id: value.id.to_string(),
-            oldids: value.oldids,
+            oldids: value.oldids.unwrap_or_default(),
             artistname: value.artistname,
             sortname: value.sortname,
             artistaliases: value.artistaliases,
