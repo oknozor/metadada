@@ -9,7 +9,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_replication_finished
+CREATE OR REPLACE TRIGGER trg_replication_finished
 AFTER UPDATE ON replication_control
 FOR EACH ROW
 WHEN (OLD.current_replication_sequence IS DISTINCT FROM NEW.current_replication_sequence)
@@ -43,14 +43,14 @@ $$ LANGUAGE plpgsql;
 
 -- =====================================
 -- artist triggers
--- ====================================
---
+-- =====================================
+
 -- artist
 CREATE OR REPLACE FUNCTION trg_artist_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', COALESCE(NEW.gid, OLD.gid));
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', COALESCE(NEW.gid, OLD.gid));
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -63,11 +63,14 @@ FOR EACH ROW EXECUTE FUNCTION trg_artist_changed_fn();
 CREATE OR REPLACE FUNCTION trg_artist_gid_redirect_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.new_id, OLD.new_id) AS artist_id
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        JOIN artist_gid_redirect agr
+          ON agr.new_id = COALESCE(NEW.new_id, OLD.new_id)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -80,11 +83,13 @@ FOR EACH ROW EXECUTE FUNCTION trg_artist_gid_redirect_changed_fn();
 CREATE OR REPLACE FUNCTION trg_artist_alias_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.artist, OLD.artist) AS artist_id
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        WHERE a.id = COALESCE(NEW.artist, OLD.artist)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -97,11 +102,13 @@ FOR EACH ROW EXECUTE FUNCTION trg_artist_alias_changed_fn();
 CREATE OR REPLACE FUNCTION trg_artist_meta_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.id, OLD.id) AS artist_id
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        WHERE a.id = COALESCE(NEW.id, OLD.id)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -110,18 +117,17 @@ CREATE TRIGGER trg_artist_meta_changed
 AFTER INSERT OR UPDATE OR DELETE ON artist_meta
 FOR EACH ROW EXECUTE FUNCTION trg_artist_meta_changed_fn();
 
-
 -- artist_type
 CREATE OR REPLACE FUNCTION trg_artist_type_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT artist.id AS artist_id
-    FROM artist
-    WHERE artist.type IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        WHERE a.type IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -134,11 +140,15 @@ FOR EACH ROW EXECUTE FUNCTION trg_artist_type_changed_fn();
 CREATE OR REPLACE FUNCTION trg_l_artist_url_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.entity0, OLD.entity0) AS artist_id
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        JOIN l_artist_url lau
+          ON lau.entity0 = a.id
+        WHERE lau.entity0 = COALESCE(NEW.entity0, OLD.entity0)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -147,17 +157,19 @@ CREATE TRIGGER trg_l_artist_url_changed
 AFTER INSERT OR UPDATE OR DELETE ON l_artist_url
 FOR EACH ROW EXECUTE FUNCTION trg_l_artist_url_changed_fn();
 
--- url
+-- url (artist)
 CREATE OR REPLACE FUNCTION trg_url_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT l_artist_url.entity0 AS artist_id
-    FROM l_artist_url
-    WHERE l_artist_url.entity1 IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        JOIN l_artist_url lau
+          ON lau.entity0 = a.id
+        WHERE lau.entity1 IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -170,11 +182,13 @@ FOR EACH ROW EXECUTE FUNCTION trg_url_changed_fn();
 CREATE OR REPLACE FUNCTION trg_artist_tag_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.artist, OLD.artist) AS artist_id
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        WHERE a.id = COALESCE(NEW.artist, OLD.artist)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -183,17 +197,18 @@ CREATE TRIGGER trg_artist_tag_changed
 AFTER INSERT OR UPDATE OR DELETE ON artist_tag
 FOR EACH ROW EXECUTE FUNCTION trg_artist_tag_changed_fn();
 
--- tag
+-- tag (artist)
 CREATE OR REPLACE FUNCTION trg_tag_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT artist_tag.artist AS artist_id
-    FROM artist_tag
-    WHERE artist_tag.tag IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        JOIN artist_tag at ON at.artist = a.id
+        WHERE at.tag IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -202,18 +217,19 @@ CREATE TRIGGER trg_tag_changed
 AFTER INSERT OR UPDATE OR DELETE ON tag
 FOR EACH ROW EXECUTE FUNCTION trg_tag_changed_fn();
 
--- genre
+-- genre (artist)
 CREATE OR REPLACE FUNCTION trg_genre_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('artist', artist_id)
-  FROM (
-    SELECT DISTINCT artist_tag.artist AS artist_id
-    FROM artist_tag
-    JOIN tag ON tag.id = artist_tag.tag
-    WHERE tag.name IN (COALESCE(NEW.name, ''), COALESCE(OLD.name, ''))
-  ) AS affected_artists;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('artist', gid)
+    FROM (
+        SELECT DISTINCT a.gid
+        FROM artist a
+        JOIN artist_tag at ON at.artist = a.id
+        JOIN tag t ON t.id = at.tag
+        WHERE t.name IN (COALESCE(NEW.name, ''), COALESCE(OLD.name, ''))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -230,8 +246,8 @@ FOR EACH ROW EXECUTE FUNCTION trg_genre_changed_fn();
 CREATE OR REPLACE FUNCTION trg_release_group_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', COALESCE(NEW.gid, OLD.gid));
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', COALESCE(NEW.gid, OLD.gid));
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -240,16 +256,19 @@ CREATE TRIGGER trg_release_group_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_changed_fn();
 
-
 -- release_group_gid_redirect
 CREATE OR REPLACE FUNCTION trg_release_group_gid_redirect_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.new_id, OLD.new_id) AS gid
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN release_group_gid_redirect rgg
+          ON rg.id = rgg.new_id
+        WHERE rgg.new_id IN (COALESCE(NEW.new_id, -1), COALESCE(OLD.new_id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -258,16 +277,17 @@ CREATE TRIGGER trg_release_group_gid_redirect_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_gid_redirect
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_gid_redirect_changed_fn();
 
-
 -- release_group_alias
 CREATE OR REPLACE FUNCTION trg_release_group_alias_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.release_group, OLD.release_group) AS gid
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        WHERE rg.id = COALESCE(NEW.release_group, OLD.release_group)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -276,16 +296,17 @@ CREATE TRIGGER trg_release_group_alias_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_alias
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_alias_changed_fn();
 
-
 -- release_group_meta
 CREATE OR REPLACE FUNCTION trg_release_group_meta_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.id, OLD.id) AS gid
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        WHERE rg.id = COALESCE(NEW.id, OLD.id)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -294,18 +315,17 @@ CREATE TRIGGER trg_release_group_meta_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_meta
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_meta_changed_fn();
 
-
 -- release_group_primary_type
 CREATE OR REPLACE FUNCTION trg_release_group_primary_type_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT release_group.id AS gid
-    FROM release_group
-    WHERE release_group.type IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        WHERE rg.type IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -314,20 +334,19 @@ CREATE TRIGGER trg_release_group_primary_type_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_primary_type
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_primary_type_changed_fn();
 
-
--- release_group_secondary_type and join table
+-- release_group_secondary_type
 CREATE OR REPLACE FUNCTION trg_release_group_secondary_type_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT release_group.id AS gid
-    FROM release_group
-    JOIN release_group_secondary_type_join rgstj
-      ON release_group.id = rgstj.release_group
-    WHERE rgstj.secondary_type IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN release_group_secondary_type_join rgstj
+          ON rg.id = rgstj.release_group
+        WHERE rgstj.secondary_type IN (COALESCE(NEW.secondary_type, -1), COALESCE(OLD.secondary_type, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -341,16 +360,19 @@ CREATE TRIGGER trg_release_group_secondary_type_join_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_secondary_type_join
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_secondary_type_changed_fn();
 
-
 -- l_release_group_url
 CREATE OR REPLACE FUNCTION trg_l_release_group_url_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.entity0, OLD.entity0) AS gid
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN l_release_group_url lrg
+          ON lrg.entity0 = rg.id
+        WHERE lrg.entity0 = COALESCE(NEW.entity0, OLD.entity0)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -359,18 +381,19 @@ CREATE TRIGGER trg_l_release_group_url_changed
 AFTER INSERT OR UPDATE OR DELETE ON l_release_group_url
 FOR EACH ROW EXECUTE FUNCTION trg_l_release_group_url_changed_fn();
 
-
--- url
+-- url (release_group)
 CREATE OR REPLACE FUNCTION trg_url_changed_release_group_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT l_release_group_url.entity0 AS gid
-    FROM l_release_group_url
-    WHERE l_release_group_url.entity1 IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN l_release_group_url lrg
+          ON lrg.entity0 = rg.id
+        WHERE lrg.entity1 IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -379,16 +402,17 @@ CREATE TRIGGER trg_url_changed_release_group
 AFTER INSERT OR UPDATE OR DELETE ON url
 FOR EACH ROW EXECUTE FUNCTION trg_url_changed_release_group_fn();
 
-
 -- release_group_tag
 CREATE OR REPLACE FUNCTION trg_release_group_tag_changed_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT COALESCE(NEW.release_group, OLD.release_group) AS gid
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        WHERE rg.id = COALESCE(NEW.release_group, OLD.release_group)
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -397,18 +421,19 @@ CREATE TRIGGER trg_release_group_tag_changed
 AFTER INSERT OR UPDATE OR DELETE ON release_group_tag
 FOR EACH ROW EXECUTE FUNCTION trg_release_group_tag_changed_fn();
 
-
--- tag
+-- tag (release_group)
 CREATE OR REPLACE FUNCTION trg_tag_changed_release_group_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT release_group_tag.release_group AS gid
-    FROM release_group_tag
-    WHERE release_group_tag.tag IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN release_group_tag rgt
+          ON rgt.release_group = rg.id
+        WHERE rgt.tag IN (COALESCE(NEW.id, -1), COALESCE(OLD.id, -1))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -417,19 +442,21 @@ CREATE TRIGGER trg_tag_changed_release_group
 AFTER INSERT OR UPDATE OR DELETE ON tag
 FOR EACH ROW EXECUTE FUNCTION trg_tag_changed_release_group_fn();
 
-
--- genre
+-- genre (release_group)
 CREATE OR REPLACE FUNCTION trg_genre_changed_release_group_fn()
 RETURNS trigger AS $$
 BEGIN
-  PERFORM flag_entity_unsynced('release_group', gid)
-  FROM (
-    SELECT DISTINCT release_group_tag.release_group AS gid
-    FROM release_group_tag
-    JOIN tag ON tag.id = release_group_tag.tag
-    WHERE tag.name IN (COALESCE(NEW.name, ''), COALESCE(OLD.name, ''))
-  ) AS affected;
-  RETURN NEW;
+    PERFORM flag_entity_unsynced('release_group', gid)
+    FROM (
+        SELECT DISTINCT rg.gid
+        FROM release_group rg
+        JOIN release_group_tag rgt
+          ON rgt.release_group = rg.id
+        JOIN tag t
+          ON t.id = rgt.tag
+        WHERE t.name IN (COALESCE(NEW.name, ''), COALESCE(OLD.name, ''))
+    ) AS affected;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 

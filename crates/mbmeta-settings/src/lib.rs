@@ -1,13 +1,27 @@
 use std::path::PathBuf;
 
 use config::{Config, Environment, File};
+use once_cell::sync::Lazy;
 use serde::Deserialize;
+
+pub static ARTIST_BATCH_SIZE: Lazy<i64> =
+    Lazy::new(|| Settings::get().unwrap().sync.artist_batch_size);
+
+pub static ALBUM_BATCH_SIZE: Lazy<i64> =
+    Lazy::new(|| Settings::get().unwrap().sync.album_batch_size);
 
 #[derive(Debug, Deserialize, Default)]
 pub struct Settings {
     pub db: DBSettings,
     pub meili: MeiliSettings,
     pub api: ApiSettings,
+    pub sync: SyncSettings,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct SyncSettings {
+    pub artist_batch_size: i64,
+    pub album_batch_size: i64,
 }
 
 #[derive(Debug, Deserialize, Default)]

@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+use mbmeta_settings::ARTIST_BATCH_SIZE;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -52,6 +53,19 @@ pub async fn all_artists(
         .await
 }
 
+pub async fn unsynced_artists(limit: i64, db: &PgPool) -> Result<Data<Artist>, sqlx::Error> {
+    sqlx::query_file_as!(Data, "queries/unsynced_artists.sql", limit)
+        .fetch_one(db)
+        .await
+}
+
+async fn unsynced_artists_count(db: &PgPool) -> sqlx::Result<i64> {
+    sqlx::query_scalar!("SELECT COUNT(*) FROM artists_sync WHERE sync IS FALSE")
+        .fetch_one(db)
+        .await
+        .map(|c| c.unwrap_or_default())
+}
+
 impl QueryAble for Artist {
     type Indexable = ArtistInfo;
     const INDEX: &'static str = "artists";
@@ -67,6 +81,19 @@ impl QueryAble for Artist {
         db: &'a sqlx::PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>> {
         Box::pin(all_artists(last_seen_gid, limit, db))
+    }
+
+    fn query_unsynced<'a>(
+        limit: i64,
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>> {
+        Box::pin(unsynced_artists(limit, db))
+    }
+
+    fn unsynced_count<'a>(
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<i64, sqlx::Error>> + Send + 'a>> {
+        Box::pin(unsynced_artists_count(db))
     }
 
     fn count<'a>(
@@ -115,5 +142,9 @@ impl QueryAble for Artist {
 
     fn to_model(self) -> Self::Indexable {
         ArtistInfo::from(self)
+    }
+
+    fn batch_size() -> i64 {
+        *ARTIST_BATCH_SIZE
     }
 }

@@ -1,8 +1,8 @@
 ALTER TABLE artists_sync
-    ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
 
 ALTER TABLE releases_sync
-    ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
@@ -11,6 +11,9 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS set_updated_at_artists ON artists_sync;
+DROP TRIGGER IF EXISTS set_updated_at_releases ON releases_sync;
 
 CREATE TRIGGER set_updated_at_artists
 BEFORE UPDATE ON artists_sync

@@ -20,13 +20,16 @@ impl MeiliClient {
         Self { client }
     }
 
-    pub async fn setup_indexes(&self) -> Result<(), Error> {
+    pub async fn setup_artist_index(&self) -> Result<(), Error> {
         let artists = self.client.index(Artist::INDEX);
         artists.set_filterable_attributes(["id", "oldids"]).await?;
         artists
             .set_searchable_attributes(["artistname", "sortname"])
             .await?;
 
+        Ok(())
+    }
+    pub async fn setup_album_index(&self) -> Result<(), Error> {
         let albums = self.client.index(Album::INDEX);
         albums.set_filterable_attributes(["id", "oldids"]).await?;
         albums

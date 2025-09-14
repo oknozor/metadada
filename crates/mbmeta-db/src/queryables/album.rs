@@ -4,6 +4,7 @@ use crate::indexables::album::AlbumInfo;
 use crate::queryables::QueryAble;
 use crate::queryables::artist::Artist;
 use crate::{Data, Rating};
+use mbmeta_settings::ALBUM_BATCH_SIZE;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;
@@ -24,6 +25,18 @@ pub async fn all_albums(
     sqlx::query_file_as!(Data, "queries/all_release_group.sql", last_seen_gid, limit)
         .fetch_one(db)
         .await
+}
+pub async fn unsynced_albums(limit: i64, db: &PgPool) -> Result<Data<Album>, sqlx::Error> {
+    sqlx::query_file_as!(Data, "queries/unsynced_release_group.sql", limit)
+        .fetch_one(db)
+        .await
+}
+
+async fn unsynced_releases_count(db: &PgPool) -> sqlx::Result<i64> {
+    sqlx::query_scalar!("SELECT COUNT(*) FROM releases_sync WHERE sync IS FALSE")
+        .fetch_one(db)
+        .await
+        .map(|c| c.unwrap_or_default())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,6 +75,19 @@ impl QueryAble for Album {
         db: &'a sqlx::PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>> {
         Box::pin(all_albums(last_seen_gid, limit, db))
+    }
+
+    fn query_unsynced<'a>(
+        limit: i64,
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>> {
+        Box::pin(unsynced_albums(limit, db))
+    }
+
+    fn unsynced_count<'a>(
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<i64, sqlx::Error>> + Send + 'a>> {
+        Box::pin(unsynced_releases_count(db))
     }
 
     fn count<'a>(
@@ -110,6 +136,10 @@ impl QueryAble for Album {
 
     fn to_model(self) -> Self::Indexable {
         AlbumInfo::from(self)
+    }
+
+    fn batch_size() -> i64 {
+        *ALBUM_BATCH_SIZE
     }
 }
 

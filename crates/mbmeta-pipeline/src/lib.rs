@@ -13,11 +13,11 @@ pub struct Ingestor {
 }
 
 impl Ingestor {
-    pub async fn batch_ingest<T: QueryAble>(&self, limit: i64) -> Result<()> {
+    pub async fn batch_ingest<T: QueryAble>(&self) -> Result<()> {
         let concurrency = 10;
         let last_seen_gid: Option<Uuid> = Some(Uuid::nil());
-        let total_artists: i64 = T::count(&self.db).await?;
-        let pb = ProgressBar::new(total_artists as u64);
+        let total: i64 = T::count(&self.db).await?;
+        let pb = ProgressBar::new(total as u64);
         pb.set_style(
             ProgressStyle::with_template(
                 "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
@@ -29,7 +29,7 @@ impl Ingestor {
         let stream = stream::unfold(last_seen_gid, |last_gid| async move {
             let this = self.clone();
 
-            match T::query_all(last_gid, limit, &this.db).await {
+            match T::query_all(last_gid, T::batch_size(), &this.db).await {
                 Ok(Data { items }) => {
                     let items: Vec<T> = match items {
                         Some(a) if !a.is_empty() => a.0,
@@ -73,6 +73,23 @@ impl Ingestor {
             .buffer_unordered(concurrency)
             .collect::<Vec<_>>()
             .await;
+
+        Ok(())
+    }
+
+    pub async fn sync<T: QueryAble>(&self) -> Result<()> {
+        loop {
+            let Data { items } = T::query_unsynced(T::batch_size(), &self.db).await?;
+            let items = items.map(|items| items.0).unwrap_or_default();
+
+            if items.is_empty() {
+                break;
+            }
+
+            let ids: Vec<Uuid> = items.iter().map(|a| a.id()).collect();
+            self.ingest(items).await?;
+            T::update_syncs(&ids, &self.db).await?;
+        }
 
         Ok(())
     }

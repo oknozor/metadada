@@ -20,6 +20,15 @@ pub trait QueryAble: DeserializeOwned + Send + Sync + Debug {
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>>;
 
+    fn query_unsynced<'a>(
+        limit: i64,
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<crate::Data<Self>, sqlx::Error>> + Send + 'a>>;
+
+    fn unsynced_count<'a>(
+        db: &'a PgPool,
+    ) -> Pin<Box<dyn Future<Output = Result<i64, sqlx::Error>> + Send + 'a>>;
+
     fn count<'a>(
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<i64, sqlx::Error>> + Send + 'a>>;
@@ -35,4 +44,6 @@ pub trait QueryAble: DeserializeOwned + Send + Sync + Debug {
     ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>>;
 
     fn to_model(self) -> Self::Indexable;
+
+    fn batch_size() -> i64;
 }

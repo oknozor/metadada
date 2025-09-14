@@ -11,3 +11,7 @@ api_key = "masterKey123"
 
 [api]
 port = 3000
+
+[sync]
+artist_batch_size = 50_000
+album_batch_size = 5_000
