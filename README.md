@@ -97,5 +97,5 @@ Also be aware that automatic update using the [MusicBrainz Live Data Feed](https
 
 ## Licence
 
-All the code in this repository is released under the MIT License, for more information take a look at
+All the code in this repository is released under the GNU General Public License, for more information take a look at
 the [LICENSE](LICENSE) file.

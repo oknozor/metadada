@@ -76,7 +76,7 @@ jobs:
           path: target/${{ matrix.target }}/release/mbmeta
 
   upload_to_release:
-    needs: [build, build_frontend, upload_license]
+    needs: [build, upload_license]
     name: Publish binaries
     runs-on: ubuntu-latest
     if: ${{ github.ref_type == 'tag' }}
@@ -141,7 +141,7 @@ jobs:
           asset_name: mbmeta{{ github.ref_name }}-x86_64-apple-darwin.tar.gz
 
   docker:
-    needs: [build, build_frontend]
+    needs: [build]
     name: Docker publish mbmeta:latest
     runs-on: ubuntu-latest
     outputs:
