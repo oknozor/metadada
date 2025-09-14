@@ -1,0 +1,222 @@
+name: Publish latest docker image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  upload_license:
+    name: Upload License
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LICENSE
+          path: LICENSE
+
+  build:
+    name: Build for ${{ matrix.os }}-${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+
+    env:
+      SQLX_OFFLINE: true
+      SQLX_OFFLINE_DIR: ".sqlx"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: "true"
+          key: "${{ matrix.os }}-${{ matrix.target }}"
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --target ${{ matrix.target }} --release --locked
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/mbmeta
+
+  upload_to_release:
+    needs: [build, build_frontend, upload_license]
+    name: Publish binaries
+    runs-on: ubuntu-latest
+    if: ${{ github.ref_type == 'tag' }}
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: ~/artifacts
+
+      - name: Copy artifacts to archive
+        run: |
+          mkdir x86_64-unknown-linux-musl
+          cp -r /home/runner/artifacts/x86_64-unknown-linux-musl/mbmeta x86_64-unknown-linux-musl/mbmeta
+          chmod +x -R  x86_64-unknown-linux-musl/mbmeta
+          cp -r /home/runner/artifacts/LICENSE/LICENSE x86_64-unknown-linux-musl/
+          tar -czf mbmeta-x86_64-unknown-linux-musl.tar.gz x86_64-unknown-linux-musl/*
+
+          mkdir armv7-unknown-linux-musleabihf
+          cp -r /home/runner/artifacts/armv7-unknown-linux-musleabihf/mbmeta armv7-unknown-linux-musleabihf/mbmeta
+          chmod +x -R  armv7-unknown-linux-musleabihf/mbmeta
+          cp -r /home/runner/artifacts/LICENSE/LICENSE armv7-unknown-linux-musleabihf/
+          tar -czf mbmeta-unknown-linux-musleabihf.tar.gz armv7-unknown-linux-musleabihf/*
+
+          mkdir aarch64-unknown-linux-gnu
+          cp -r /home/runner/artifacts/aarch64-unknown-linux-gnu/mbmeta aarch64-unknown-linux-gnu/mbmeta
+          chmod +x -R  aarch64-unknown-linux-gnu/mbmeta
+          cp -r /home/runner/artifacts/LICENSE/LICENSE aarch64-unknown-linux-gnu/
+          tar -czf mbmeta-unknown-linux-gnu.tar.gz aarch64-unknown-linux-gnu/*
+
+          mkdir x86_64-apple-darwin
+          cp -r /home/runner/artifacts/x86_64-apple-darwin/mbmeta x86_64-apple-darwin/mbmeta
+          chmod +x -R  x86_64-apple-darwin/mbmeta
+          cp -r /home/runner/artifacts/LICENSE/LICENSE x86_64-apple-darwin/
+          tar -czf oknozor-mbmeta-apple-darwin.tar.gz x86_64-apple-darwin/*
+
+      - uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: oknozor-mbmeta-unknown-linux-musl.tar.gz
+          tag: ${{ github.ref }}
+          asset_name: oknozor-mbmeta{{ github.ref_name }}-x86_64-unknown-linux-musl.tar.gz
+
+      - uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: oknozor-mbmeta-unknown-linux-musleabihf.tar.gz
+          tag: ${{ github.ref_name }}
+          asset_name: oknozor-mbmeta{{ github.ref_name }}-armv7-unknown-linux-musleabihf.tar.gz
+
+      - uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: mbmeta-unknown-linux-gnu.tar.gz
+          tag: ${{ github.ref_name }}
+          asset_name: mbmeta{{ github.ref_name }}-aarch64-unknown-linux-gnu.tar.gz
+
+      - uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: mbmeta-apple-darwin.tar.gz
+          tag: ${{ github.ref_name }}
+          asset_name: mbmeta{{ github.ref_name }}-x86_64-apple-darwin.tar.gz
+
+  docker:
+    needs: [build, build_frontend]
+    name: Docker publish mbmeta:latest
+    runs-on: ubuntu-latest
+    outputs:
+      latest-sha: ${{ steps.docker_build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ~/artifacts
+
+      - name: Copy artifacts to build dir
+        run: |
+          mkdir -p target/x86_64-unknown-linux-musl/release/
+          mkdir -p target/armv7-unknown-linux-musleabihf/release/
+          mkdir -p target/aarch64-unknown-linux-gnu/release/
+          mkdir -p frontend/dist/
+
+          cp -r /home/runner/artifacts/x86_64-unknown-linux-musl/. target/x86_64-unknown-linux-musl/release
+          cp -r /home/runner/artifacts/armv7-unknown-linux-musleabihf/. target/armv7-unknown-linux-musleabihf/release
+          cp -r /home/runner/artifacts/aarch64-unknown-linux-gnu/. target/aarch64-unknown-linux-gnu/release
+          cp -r /home/runner/artifacts/frontend-build/. frontend/dist/
+
+          chmod +x -R  target/x86_64-unknown-linux-musl/release
+          chmod +x -R  target/armv7-unknown-linux-musleabihf/release
+          chmod +x -R  target/aarch64-unknown-linux-gnu/release
+        working-directory: ./
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm/v7,linux/arm64/v8
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/${{ github.repository_owner }}/mbmeta:latest
+
+  # deploy:
+  #   name: Deploy latest to homelab
+  #   runs-on: ubuntu-latest
+  #   needs: docker
+  #   if: ${{ github.event_name != 'pull_request' }}
+  #   steps:
+  #     - name: Checkout GitOps Repo
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: lucas-dclrcq/homelabitty
+  #         token: ${{ secrets.GH_PAT }}
+  #         path: gitops-repo
+
+  #     - name: Update HelmRelease File
+  #       env:
+  #         SHA256: ${{ needs.docker.outputs.latest-sha }}
+  #       run: |
+  #         VERSION="latest@${SHA256}" yq eval '.spec.values.controllers.mbmeta.containers.main.image.tag = strenv(VERSION)' \
+  #           -i gitops-repo/kubernetes/apps/media/mbmeta/app/helmrelease.yaml
+
+  #     - name: Commit & push new version
+  #       env:
+  #         SHA256: ${{ needs.docker.outputs.latest-sha }}
+  #       run: |
+  #         cd gitops-repo
+  #         git config user.name "Homelab Manager"
+  #         git config user.email "homelab@manager.org"
+  #         git add kubernetes/apps/media/mbmeta/app/helmrelease.yaml
+  #         git commit -m "chore(mbmeta): update latest to ${SHA256}"
+  #         git push origin main
