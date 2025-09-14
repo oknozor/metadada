@@ -168,12 +168,10 @@ jobs:
           mkdir -p target/x86_64-unknown-linux-musl/release/
           mkdir -p target/armv7-unknown-linux-musleabihf/release/
           mkdir -p target/aarch64-unknown-linux-gnu/release/
-          mkdir -p frontend/dist/
 
           cp -r /home/runner/artifacts/x86_64-unknown-linux-musl/. target/x86_64-unknown-linux-musl/release
           cp -r /home/runner/artifacts/armv7-unknown-linux-musleabihf/. target/armv7-unknown-linux-musleabihf/release
           cp -r /home/runner/artifacts/aarch64-unknown-linux-gnu/. target/aarch64-unknown-linux-gnu/release
-          cp -r /home/runner/artifacts/frontend-build/. frontend/dist/
 
           chmod +x -R  target/x86_64-unknown-linux-musl/release
           chmod +x -R  target/armv7-unknown-linux-musleabihf/release
@@ -188,7 +186,7 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm/v7,linux/arm64/v8
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository_owner }}/mbmeta:latest
+          tags: ghcr.io/${{ github.repository_owner }}/metadada:latest
 
   # deploy:
   #   name: Deploy latest to homelab
