@@ -85,6 +85,28 @@ Also be aware that automatic update using the [MusicBrainz Live Data Feed](https
       ```
 5. You can now browse the avalaible entpoint at `localhost:3000/swagger-ui`
 
+## Env
+
+```
+# Database configuration
+MBMETA__DB__USER=musicbrainz
+MBMETA__DB__PASSWORD=musicbrainz
+MBMETA__DB__HOST=localhost
+MBMETA__DB__PORT=5432
+MBMETA__DB__NAME=musicbrainz
+
+# Meilisearch configuration
+MBMETA__MEILI__URL=http://localhost:7700
+MBMETA__MEILI__API_KEY=masterKey123
+
+# API configuration
+MBMETA__API__PORT=3000
+
+# Sync configuration
+MBMETA__SYNC__ARTIST_BATCH_SIZE=10000
+MBMETA__SYNC__ALBUM_BATCH_SIZE=5000
+```
+
 ## Todos
 - [ ] mbslave optimization (ignore unused tables)
 - [ ] pg_notify listener for reindexing

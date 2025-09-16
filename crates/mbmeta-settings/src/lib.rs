@@ -50,7 +50,8 @@ impl Settings {
             Environment::with_prefix("MBMETA")
                 .try_parsing(true)
                 .prefix_separator("__")
-                .separator("__"),
+                .separator("__")
+                .try_parsing(true),
         );
 
         let etc_config = PathBuf::from("/etc/mbmeta/config.toml");
