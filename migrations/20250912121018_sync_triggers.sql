@@ -24,12 +24,12 @@ BEGIN
   END IF;
 
   IF entity_type = 'artist' THEN
-    INSERT INTO artists_sync (id, sync)
+    INSERT INTO metadada.artists_sync (id, sync)
     VALUES (gid, FALSE)
     ON CONFLICT (id) DO UPDATE SET sync = FALSE;
 
   ELSIF entity_type = 'release_group' THEN
-    INSERT INTO releases_sync (id, sync)
+    INSERT INTO metadada.releases_sync (id, sync)
     VALUES (gid, FALSE)
     ON CONFLICT (id) DO UPDATE SET sync = FALSE;
   END IF;

@@ -33,7 +33,7 @@ pub async fn unsynced_albums(limit: i64, db: &PgPool) -> Result<Data<Album>, sql
 }
 
 async fn unsynced_releases_count(db: &PgPool) -> sqlx::Result<i64> {
-    sqlx::query_scalar!("SELECT COUNT(*) FROM releases_sync WHERE sync IS FALSE")
+    sqlx::query_scalar!("SELECT COUNT(*) FROM metadada.releases_sync WHERE sync IS FALSE")
         .fetch_one(db)
         .await
         .map(|c| c.unwrap_or_default())
@@ -103,7 +103,7 @@ impl QueryAble for Album {
         Box::pin(async move {
             sqlx::query!(
                 r#"
-                INSERT INTO releases_sync (id)
+                INSERT INTO metadada.releases_sync (id)
                 VALUES (UNNEST($1::uuid[]))
                 ON CONFLICT (id) DO NOTHING;
                 "#,
@@ -122,7 +122,7 @@ impl QueryAble for Album {
         Box::pin(async move {
             sqlx::query!(
                 r#"
-                UPDATE releases_sync
+                UPDATE metadada.releases_sync
                 SET sync = TRUE
                 WHERE id = ANY($1::uuid[])
                 "#,
