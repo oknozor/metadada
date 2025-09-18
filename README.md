@@ -108,14 +108,16 @@ MBMETA__SYNC__ALBUM_BATCH_SIZE=5000
 ```
 
 ## Todos
-- [ ] mbslave optimization (ignore unused tables)
-- [ ] pg_notify listener for reindexing
+- [x] mbslave optimization (ignore unused tables)
+- [ ] apply ignored tables to replication
+- [ ] ~~pg_notify listener for reindexing~~ (use a simple mpsc channel)
 - [x] preindexing image and link transformation
 - [ ] implement `includeTracks` param using meilisearch `attributesToRetrieve`
 - [ ] setup ranking on meilisearch indexes
 - [ ] implement /recent endpoints
-- [ ] Distribute docker multiarch image
-- [ ] Helm charts
+- [x] Distribute docker multiarch image
+- [x] Helm charts (see: homelability repo)
+- [ ] move replication logic to importer so we can have both the CLI and the lib
 
 ## Licence
 

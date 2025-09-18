@@ -18,6 +18,7 @@ mbmeta-meili.workspace = true
 mbmeta-db.workspace = true
 mbmeta-api.workspace = true
 mbmeta-pg-listener.workspace = true
+metadada-importer.workspace = true
 clap.workspace = true
 axum.workspace = true
 utoipa-axum.workspace = true
