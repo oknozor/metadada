@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
         .max_connections(5)
         .connect(&config.db_url())
         .await?;
-
+    sqlx::migrate!("../../migrations").run(&db).await?;
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
 
     let cli = Cli::parse();

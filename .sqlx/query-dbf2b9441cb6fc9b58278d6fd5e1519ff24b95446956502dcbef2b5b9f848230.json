@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) FROM releases_sync WHERE sync IS FALSE",
+  "query": "SELECT COUNT(*) FROM metadada.artists_sync WHERE sync IS FALSE",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       null
     ]
   },
-  "hash": "62b131495de028522fae4f4f45abd2aa95357eab234a7b0f3782084d6b388ac4"
+  "hash": "dbf2b9441cb6fc9b58278d6fd5e1519ff24b95446956502dcbef2b5b9f848230"
 }

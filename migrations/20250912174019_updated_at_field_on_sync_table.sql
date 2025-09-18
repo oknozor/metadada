@@ -1,7 +1,7 @@
-ALTER TABLE artists_sync
+ALTER TABLE metadada.artists_sync
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
 
-ALTER TABLE releases_sync
+ALTER TABLE metadada.releases_sync
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NOT NULL;
 
 CREATE OR REPLACE FUNCTION set_updated_at()
@@ -12,15 +12,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS set_updated_at_artists ON artists_sync;
-DROP TRIGGER IF EXISTS set_updated_at_releases ON releases_sync;
+DROP TRIGGER IF EXISTS set_updated_at_artists ON metadada.artists_sync;
+DROP TRIGGER IF EXISTS set_updated_at_releases ON metadada.releases_sync;
 
 CREATE TRIGGER set_updated_at_artists
-BEFORE UPDATE ON artists_sync
+BEFORE UPDATE ON metadada.artists_sync
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
 CREATE TRIGGER set_updated_at_releases
-BEFORE UPDATE ON releases_sync
+BEFORE UPDATE ON metadada.releases_sync
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();

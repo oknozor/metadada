@@ -94,7 +94,7 @@ FROM (
     FROM artist
     LEFT JOIN artist_type ON artist.type = artist_type.id
     LEFT JOIN artist_meta ON artist.id = artist_meta.id
-    JOIN artists_sync s ON s.id = artist.gid
+    JOIN metadada.artists_sync s ON s.id = artist.gid
     WHERE s.sync IS FALSE
     LIMIT $1
 ) artist_data;

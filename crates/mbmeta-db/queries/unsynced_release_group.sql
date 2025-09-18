@@ -247,7 +247,7 @@ FROM (
   LEFT JOIN artist ON artist_credit_name.artist = artist.id
   LEFT JOIN artist_type ON artist.type = artist_type.id
   LEFT JOIN artist_meta ON artist.id = artist_meta.id
-  JOIN releases_sync s ON release_group.gid = s.id
+  JOIN metadada.releases_sync s ON release_group.gid = s.id
   WHERE s.sync IS FALSE
   LIMIT $1
 ) album_data;

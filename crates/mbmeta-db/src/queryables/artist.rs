@@ -60,7 +60,7 @@ pub async fn unsynced_artists(limit: i64, db: &PgPool) -> Result<Data<Artist>, s
 }
 
 async fn unsynced_artists_count(db: &PgPool) -> sqlx::Result<i64> {
-    sqlx::query_scalar!("SELECT COUNT(*) FROM artists_sync WHERE sync IS FALSE")
+    sqlx::query_scalar!("SELECT COUNT(*) FROM metadada.artists_sync WHERE sync IS FALSE")
         .fetch_one(db)
         .await
         .map(|c| c.unwrap_or_default())
@@ -109,7 +109,7 @@ impl QueryAble for Artist {
         Box::pin(async move {
             sqlx::query(
                 r#"
-                INSERT INTO artists_sync (id)
+                INSERT INTO metadada.artists_sync (id)
                 VALUES (UNNEST($1::uuid[]))
                 ON CONFLICT (id) DO NOTHING;
                 "#,
@@ -128,7 +128,7 @@ impl QueryAble for Artist {
         Box::pin(async move {
             sqlx::query(
                 r#"
-                UPDATE artists_sync
+                UPDATE metadada.artists_sync
                 SET sync = TRUE
                 WHERE id = ANY($1::uuid[])
                 "#,
