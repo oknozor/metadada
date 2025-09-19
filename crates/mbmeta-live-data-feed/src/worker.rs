@@ -1,18 +1,19 @@
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    path::{Path, PathBuf},
+};
+
 use crate::{dbmirror, download::ReplicationPacketFetcher, replication_packet::ReplicationControl};
 use anyhow::Result;
-use async_compression::tokio::bufread::BzDecoder;
-use async_tar::Archive;
+use bzip2::bufread::BzDecoder;
 use chrono::{DateTime, Utc};
-use futures_util::{AsyncReadExt, StreamExt};
+use mbmeta_settings::Settings;
 use sqlx::PgPool;
+use tar::Archive;
 use tempfile::NamedTempFile;
-use tokio::{fs::File, io::BufReader, time};
-use tokio_util::compat::TokioAsyncReadCompatExt;
-use tracing::{error, info, warn};
-
-type TarEntry = tokio_util::compat::Compat<
-    async_compression::tokio::bufread::BzDecoder<tokio::io::BufReader<tokio::fs::File>>,
->;
+use tokio::time;
+use tracing::{error, info};
 
 pub struct MusicbrainzReplicationWorker {
     db: PgPool,
@@ -20,10 +21,13 @@ pub struct MusicbrainzReplicationWorker {
 }
 
 impl MusicbrainzReplicationWorker {
-    pub async fn new(db: PgPool) -> Self {
+    pub fn new(db: PgPool, config: &Settings) -> Self {
         Self {
             db,
-            fetcher: ReplicationPacketFetcher::new(),
+            fetcher: ReplicationPacketFetcher::new(
+                config.musicbrainz.url.clone(),
+                config.musicbrainz.token.clone(),
+            ),
         }
     }
 
@@ -32,35 +36,49 @@ impl MusicbrainzReplicationWorker {
             let replication_control = ReplicationControl::get(&self.db).await?;
             if let Some(next_replication_sequence) = replication_control.next_replication_sequence()
             {
-                let tmpfile = NamedTempFile::new()?;
-                let mut writer = tokio::fs::File::from_std(tmpfile.reopen()?);
-                match self
-                    .fetcher
-                    .fetch_packet(next_replication_sequence, &mut writer)
-                    .await
-                {
-                    Ok(_) => {
-                        info!(
-                            "Replication packet {} downloaded, processing...",
-                            next_replication_sequence
-                        );
-                        let archive = get_archive(tmpfile).await?;
-                        let mut entries = archive.entries()?;
-                        while let Some(entry) = entries.next().await {
-                            let mut entry = entry?;
+                let last_replication_date = replication_control
+                    .last_replication_date
+                    .map(|d| d.format("%y/%m/%d - %H:%M:%S").to_string())
+                    .unwrap_or("N/a".into());
+
+                info!(
+                    "Starting new replication process, last replication occured on {last_replication_date}",
+                );
+
+                // let mut tmpfile = NamedTempFile::new()?;
+                let path = "/home/okno/Downloads/replication-180012-v2.tar.bz2";
+                let path = PathBuf::from(path);
+                sqlx::query!("TRUNCATE dbmirror2.pending_data, dbmirror2.pending_keys")
+                    .execute(&self.db)
+                    .await?;
+                // let writer = tmpfile.as_file_mut();
+                // self.fetcher
+                //     .fetch_packet(next_replication_sequence, writer)
+                //     .await?;
+
+                info!(
+                    "Replication packet {} downloaded, processing...",
+                    next_replication_sequence
+                );
+                let mut archive = get_archive(&path)?;
+                for entry in archive.entries()? {
+                    match entry {
+                        Ok(mut entry) => {
                             let path = entry.path()?;
+
                             let filename = path.as_ref().file_name().and_then(|f| f.to_str());
 
                             match filename {
-                                Some("dbmirror_pending") => {
+                                Some("pending_keys") => {
                                     dbmirror::load_pending_keys(&self.db, &mut entry).await?;
                                 }
-                                Some("dbmirror_pending_data") => {
+                                Some("pending_data") => {
                                     dbmirror::load_pending_data(&self.db, &mut entry).await?;
                                 }
                                 Some("REPLICATION_SEQUENCE") => {
                                     let mut replication_sequence = String::new();
                                     let _ = entry.read_to_string(&mut replication_sequence);
+                                    let replication_sequence = replication_sequence.trim();
                                     let replication_sequence =
                                         replication_sequence.parse::<i32>()?;
 
@@ -75,7 +93,8 @@ impl MusicbrainzReplicationWorker {
                                 }
                                 Some("SCHEMA_SEQUENCE") => {
                                     let mut schema_sequence = String::new();
-                                    let _ = entry.read_to_string(&mut schema_sequence).await?;
+                                    let _ = entry.read_to_string(&mut schema_sequence)?;
+                                    let schema_sequence = schema_sequence.trim();
                                     let schema_sequence = schema_sequence.parse::<i32>()?;
                                     if !replication_control.schema_sequence_match(schema_sequence) {
                                         error!(
@@ -90,38 +109,48 @@ impl MusicbrainzReplicationWorker {
                                     }
                                 }
                                 Some("TIMESTAMP") => {
-                                    extract_timestamp(entry).await?;
+                                    extract_timestamp(entry)?;
                                 }
                                 _ => {}
                             }
                         }
-                    }
-                    Err(e) => {
-                        warn!("{}", e);
-                        info!("sleeping for 30m");
-                        time::sleep(std::time::Duration::from_secs(30 * 60)).await;
-                        continue;
+                        Err(err) => {
+                            error!("Error skipping archive entry: {err}");
+                            break;
+                        }
                     }
                 }
+                dbmirror::replicate(&self.db).await?;
+
+                info!("replication finished, sleeping");
+                tokio::time::sleep(std::time::Duration::from_secs(30 * 60)).await;
             }
         }
     }
 }
 
-async fn extract_timestamp(mut entry: impl AsyncReadExt + Unpin) -> anyhow::Result<()> {
-    let mut timestamp = String::new();
-    let _ = entry.read_to_string(&mut timestamp).await?;
-    let date = DateTime::parse_from_str(&timestamp, "%Y-%m-%d %H:%M:%S%.f%:z")?.with_timezone(&Utc);
+fn extract_timestamp(mut entry: impl std::io::Read) -> anyhow::Result<()> {
+    let mut date_str = String::new();
+    entry.read_to_string(&mut date_str)?;
+    let date_str = date_str.trim();
+    println!("raw timestamp: {:?}", date_str);
+
+    let date_str = if date_str.ends_with("+00") || date_str.ends_with("-00") {
+        format!("{}:00", date_str)
+    } else {
+        date_str.to_string()
+    };
+
+    let date = DateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S%.f%:z")?.with_timezone(&Utc);
     let date = date.format("%Y-%m-%d %H:%M:%S");
     info!("replication packet emitted at: {date}");
     Ok(())
 }
 
-async fn get_archive(tmpfile: NamedTempFile) -> Result<Archive<TarEntry>> {
-    let f = File::open(tmpfile.path()).await?;
+fn get_archive(tmpfile: &Path) -> Result<Archive<impl Read>> {
+    let f = File::open(tmpfile)?;
     let reader = BufReader::new(f);
     let decompressor = BzDecoder::new(reader);
-    let compat_reader = decompressor.compat();
-    let archive = Archive::new(compat_reader);
+    let archive = Archive::new(decompressor);
     Ok(archive)
 }

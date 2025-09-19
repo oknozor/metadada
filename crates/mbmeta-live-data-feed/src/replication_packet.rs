@@ -3,15 +3,14 @@ use sqlx::{PgPool, prelude::FromRow};
 
 #[derive(Debug, FromRow)]
 pub struct ReplicationControl {
-    id: i32,
     pub current_schema_sequence: Option<i32>,
     pub current_replication_sequence: Option<i32>,
-    last_replication_date: Option<DateTime<Utc>>,
+    pub last_replication_date: Option<DateTime<Utc>>,
 }
 
 impl ReplicationControl {
     pub async fn get(db: &PgPool) -> Result<Self, sqlx::Error> {
-        sqlx::query_as!(ReplicationControl, "SELECT id, current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control")
+        sqlx::query_as!(ReplicationControl, "SELECT current_schema_sequence, current_replication_sequence, last_replication_date FROM replication_control")
             .fetch_one(db)
             .await
     }

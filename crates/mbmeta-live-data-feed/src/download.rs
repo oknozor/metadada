@@ -1,29 +1,34 @@
+use std::io::{BufWriter, Write};
+
 use anyhow::Result;
 use futures_util::StreamExt;
-use tokio::io::{AsyncWriteExt, BufWriter};
-
-const MUSICBRAINZ_FTP: &str = "http://ftp.musicbrainz.org/pub/musicbrainz/data/replication";
+use tracing::info;
 
 pub struct ReplicationPacketFetcher {
     client: reqwest::Client,
+    url: String,
+    token: String,
 }
 
 impl ReplicationPacketFetcher {
-    pub fn new() -> Self {
+    pub fn new(url: String, token: String) -> Self {
         Self {
             client: reqwest::Client::new(),
+            url,
+            token,
         }
     }
 
     pub async fn fetch_packet(
         &self,
         replication_sequence: i32,
-        tmpfile: &mut tokio::fs::File,
+        tmpfile: &mut std::fs::File,
     ) -> Result<()> {
         let url = format!(
-            "{}/replication-{}-v2.tar.bz2",
-            MUSICBRAINZ_FTP, replication_sequence
+            "{}/replication-{}-v2.tar.bz2?token={}",
+            self.url, replication_sequence, self.token
         );
+        info!("Fetching replication packet from {}", url);
 
         let response = self.client.get(&url).send().await?;
         if response.status() != reqwest::StatusCode::OK {
@@ -37,7 +42,7 @@ impl ReplicationPacketFetcher {
         let mut stream = response.bytes_stream();
         while let Some(chunk) = stream.next().await {
             let data = chunk?;
-            writer.write_all(&data).await?;
+            writer.write_all(&data)?;
         }
 
         Ok(())

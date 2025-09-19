@@ -13,8 +13,10 @@ serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
-reqwest.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
 bzip2.workspace = true
 tar.workspace = true
+
+# keep reqwest here or it conflicts with meilisearch
+reqwest = { version = "0.12", features = ["rustls-tls"] }

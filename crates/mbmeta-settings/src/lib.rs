@@ -16,6 +16,7 @@ pub struct Settings {
     pub meili: MeiliSettings,
     pub api: ApiSettings,
     pub sync: SyncSettings,
+    pub musicbrainz: MusicbrainzSettings,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -42,6 +43,12 @@ pub struct DBSettings {
     pub host: String,
     pub port: u16,
     pub name: String,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct MusicbrainzSettings {
+    pub url: String,
+    pub token: String,
 }
 
 impl Settings {
