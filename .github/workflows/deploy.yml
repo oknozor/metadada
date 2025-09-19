@@ -214,7 +214,7 @@ jobs:
         run: |
           cd gitops-repo
           git config user.name "Metadada GitHub"
-          git config user.email "homelab@manager.org"
+          git config user.email "meta@dada.org"
           git add kubernetes/apps/media/metadada/app/helmrelease.yaml
           git commit -m "chore(metadada): update latest to ${SHA256}"
           git push origin main
