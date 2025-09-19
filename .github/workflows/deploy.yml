@@ -188,33 +188,33 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ghcr.io/${{ github.repository_owner }}/metadada:latest
 
-  # deploy:
-  #   name: Deploy latest to homelab
-  #   runs-on: ubuntu-latest
-  #   needs: docker
-  #   if: ${{ github.event_name != 'pull_request' }}
-  #   steps:
-  #     - name: Checkout GitOps Repo
-  #       uses: actions/checkout@v4
-  #       with:
-  #         repository: lucas-dclrcq/homelabitty
-  #         token: ${{ secrets.GH_PAT }}
-  #         path: gitops-repo
+  deploy:
+    name: Deploy latest to homelab
+    runs-on: ubuntu-latest
+    needs: docker
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          repository: lucas-dclrcq/homelabitty
+          token: ${{ secrets.GH_PAT }}
+          path: gitops-repo
 
-  #     - name: Update HelmRelease File
-  #       env:
-  #         SHA256: ${{ needs.docker.outputs.latest-sha }}
-  #       run: |
-  #         VERSION="latest@${SHA256}" yq eval '.spec.values.controllers.mbmeta.containers.main.image.tag = strenv(VERSION)' \
-  #           -i gitops-repo/kubernetes/apps/media/mbmeta/app/helmrelease.yaml
+      - name: Update HelmRelease File
+        env:
+          SHA256: ${{ needs.docker.outputs.latest-sha }}
+        run: |
+          VERSION="latest@${SHA256}" yq eval '.spec.values.controllers.metadada.containers.main.image.tag = strenv(VERSION)' \
+            -i gitops-repo/kubernetes/apps/media/metadada/app/helmrelease.yaml
 
-  #     - name: Commit & push new version
-  #       env:
-  #         SHA256: ${{ needs.docker.outputs.latest-sha }}
-  #       run: |
-  #         cd gitops-repo
-  #         git config user.name "Homelab Manager"
-  #         git config user.email "homelab@manager.org"
-  #         git add kubernetes/apps/media/mbmeta/app/helmrelease.yaml
-  #         git commit -m "chore(mbmeta): update latest to ${SHA256}"
-  #         git push origin main
+      - name: Commit & push new version
+        env:
+          SHA256: ${{ needs.docker.outputs.latest-sha }}
+        run: |
+          cd gitops-repo
+          git config user.name "Homelab Manager"
+          git config user.email "homelab@manager.org"
+          git add kubernetes/apps/media/metadada/app/helmrelease.yaml
+          git commit -m "chore(metadada): update latest to ${SHA256}"
+          git push origin main
