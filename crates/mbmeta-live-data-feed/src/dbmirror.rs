@@ -78,6 +78,10 @@ impl Column {
             None => cast,
         })
     }
+
+    fn is_some(&self) -> bool {
+        self.name.is_some() && self.data_type.is_some()
+    }
 }
 
 pub async fn load_pending_data(db: &PgPool, mut source: impl Read) -> anyhow::Result<()> {
@@ -245,15 +249,15 @@ async fn apply_update(
     let columns = Column::get(schema, table, db).await?;
 
     // build SET clause: column = cast_expr("pd.newdata")
+    if table == "release_annotation" {
+        println!("{:?}", columns);
+        println!("{:?}", row);
+    }
+
     let set_clause: Vec<String> = columns
         .iter()
-        .filter(|c| {
-            if let Some(name) = &c.name {
-                !row.keys.contains(name) // exclude primary keys
-            } else {
-                false
-            }
-        })
+        .filter(|c| c.is_some())
+        .filter(|column| row.keys.contains(column.name.as_ref().unwrap()))
         .filter_map(|c| {
             let name = c.name.as_ref()?;
             let expr = c.cast_expr("pd.newdata", None)?;
