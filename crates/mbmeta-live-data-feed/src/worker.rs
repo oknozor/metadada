@@ -45,22 +45,21 @@ impl MusicbrainzReplicationWorker {
                     "Starting new replication process, last replication occured on {last_replication_date}",
                 );
 
-                // let mut tmpfile = NamedTempFile::new()?;
-                let path = "/home/okno/Downloads/replication-180012-v2.tar.bz2";
-                let path = PathBuf::from(path);
+                let mut tmpfile = NamedTempFile::new()?;
                 sqlx::query!("TRUNCATE dbmirror2.pending_data, dbmirror2.pending_keys")
                     .execute(&self.db)
                     .await?;
-                // let writer = tmpfile.as_file_mut();
-                // self.fetcher
-                //     .fetch_packet(next_replication_sequence, writer)
-                //     .await?;
+                let writer = tmpfile.as_file_mut();
+                self.fetcher
+                    .fetch_packet(next_replication_sequence, writer)
+                    .await?;
 
+                dbmirror::truncate_tables(&self.db).await?;
                 info!(
                     "Replication packet {} downloaded, processing...",
                     next_replication_sequence
                 );
-                let mut archive = get_archive(&path)?;
+                let mut archive = get_archive(tmpfile.path())?;
                 for entry in archive.entries()? {
                     match entry {
                         Ok(mut entry) => {
@@ -133,8 +132,6 @@ fn extract_timestamp(mut entry: impl std::io::Read) -> anyhow::Result<()> {
     let mut date_str = String::new();
     entry.read_to_string(&mut date_str)?;
     let date_str = date_str.trim();
-    println!("raw timestamp: {:?}", date_str);
-
     let date_str = if date_str.ends_with("+00") || date_str.ends_with("-00") {
         format!("{}:00", date_str)
     } else {
