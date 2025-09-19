@@ -205,7 +205,7 @@ jobs:
         env:
           SHA256: ${{ needs.docker.outputs.latest-sha }}
         run: |
-          VERSION="latest@${SHA256}" yq eval '.spec.values.controllers.metadada.containers.main.image.tag = strenv(VERSION)' \
+          VERSION="latest@${SHA256}" yq eval '.spec.values.controllers.main.containers.main.image.tag = strenv(VERSION)' \
             -i gitops-repo/kubernetes/apps/media/metadada/app/helmrelease.yaml
 
       - name: Commit & push new version
