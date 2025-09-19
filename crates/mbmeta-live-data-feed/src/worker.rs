@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{BufReader, Read},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use crate::{dbmirror, download::ReplicationPacketFetcher, replication_packet::ReplicationControl};

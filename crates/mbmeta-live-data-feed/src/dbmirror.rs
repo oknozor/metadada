@@ -29,29 +29,54 @@ impl Column {
         .await
     }
 
-    pub fn cast_expr(&self, json_var: &str) -> Option<String> {
+    pub fn cast_expr(&self, json_var: &str, left: Option<&str>) -> Option<String> {
         let name = self.name.as_ref()?;
         let data_type = self.data_type.as_ref()?;
-
+        let cast = format!("({json_var}->>'{name}')");
         let cast = match data_type.as_str() {
-            "smallint" => "::smallint",
-            "integer" => "::int",
-            "bigint" => "::bigint",
-            "boolean" => "::boolean",
-            "uuid" => "::uuid",
-            "timestamp with time zone" => "::timestamptz",
-            "timestamp without time zone" => "::timestamp",
-            "USER-DEFINED" if name == "toc" => "::cube",
-            "text" | "character varying" => "",
+            "smallint" => format!("{cast}::smallint"),
+            "integer" => format!("{cast}::int"),
+            "bigint" => format!("{cast}::bigint"),
+            "boolean" => format!("{cast}::boolean"),
+            "uuid" => format!("{cast}::uuid"),
+            "numeric" | "decimal" => format!("{cast}::numeric"),
+            "real" => format!("{cast}::real"),
+            "double precision" => format!("{cast}::double precision"),
+            "timestamp with time zone" => format!("{cast}::timestamptz"),
+            "time with time zone" => format!("{cast}::timetz"),
+            "timestamp without time zone" => format!("{cast}::timestamp"),
+            "time without time zone" => format!("{cast}::time"),
+            "date" => format!("{cast}::date"),
+            "text" | "character varying" | "character" => format!("{cast}::text"),
+            "point" => format!("{cast}::point"),
+            "USER-DEFINED" if name == "toc" => format!("{cast}::cube"),
             "USER-DEFINED" if name == "cover_art_presence" => {
-                return Some(format!(
-                    "(({json_var}->>'{name}')::text)::cover_art_presence"
-                ));
+                format!("({cast}::text)::cover_art_presence")
             }
-            _ => "",
+            "USER-DEFINED" if name == "event_art_presence" => {
+                format!("({cast}::text)::event_art_presence")
+            }
+            "USER-DEFINED" => cast.clone(),
+            "ARRAY" | "integer[]" => {
+                format!("ARRAY(SELECT jsonb_array_elements_text({json_var}->'{name}')::int)")
+            }
+            "smallint[]" => {
+                format!("ARRAY(SELECT jsonb_array_elements_text({json_var}->'{name}')::smallint)")
+            }
+            "bigint[]" => {
+                format!("ARRAY(SELECT jsonb_array_elements_text({json_var}->'{name}')::bigint)")
+            }
+            "text[]" | "character varying[]" => {
+                format!("ARRAY(SELECT jsonb_array_elements_text({json_var}->'{name}'))")
+            }
+
+            _ => cast,
         };
 
-        Some(format!("({json_var}->>'{name}'){cast}"))
+        Some(match left {
+            Some(l) => format!("{l} = {cast}"),
+            None => cast,
+        })
     }
 }
 
@@ -172,7 +197,6 @@ async fn apply_delete(
     row: &PendingRow,
     db: &PgPool,
 ) -> Result<()> {
-    println!("D {:?}", row);
     let (schema, table) = {
         let parts: Vec<_> = row.tablename.split('.').collect();
         (parts[0], parts[1])
@@ -180,29 +204,26 @@ async fn apply_delete(
 
     let columns = Column::get(schema, table, db).await?;
 
-    // Build WHERE clause only using the PK columns from pending_keys
-    let where_clause: Vec<String> = row
+    // Build WHERE clause: t.col = (pd.olddata->>'col')::type
+    let where_clause = row
         .keys
         .iter()
         .filter_map(|key| {
             columns
                 .iter()
                 .find(|c| c.name.as_deref() == Some(key))
-                .and_then(|c| c.cast_expr("pd.olddata"))
+                .and_then(|c| c.cast_expr("pd.olddata", Some(&format!("t.{key}"))))
         })
-        .collect();
-
-    if where_clause.is_empty() {
-        return Err(anyhow::anyhow!("No matching keys found for DELETE"));
-    }
+        .collect::<Vec<_>>()
+        .join(" AND ");
 
     let sql = format!(
         r#"DELETE FROM "{schema}"."{table}" t
            USING (SELECT $1::jsonb AS olddata) pd
-           WHERE {}"#,
-        where_clause.join(" AND ")
+           WHERE {where_clause}"#
     );
 
+    println!("{:?}", sql);
     sqlx::query(&sql)
         .bind(row.olddata.as_ref().unwrap())
         .execute(&mut **tx)
@@ -216,7 +237,6 @@ async fn apply_update(
     row: &PendingRow,
     db: &PgPool,
 ) -> Result<()> {
-    println!("U {:?}", row);
     let (schema, table) = {
         let parts: Vec<_> = row.tablename.split('.').collect();
         (parts[0], parts[1])
@@ -224,26 +244,24 @@ async fn apply_update(
 
     let columns = Column::get(schema, table, db).await?;
 
-    // SET clause: all non-PK columns
+    // build SET clause: column = cast_expr("pd.newdata")
     let set_clause: Vec<String> = columns
         .iter()
         .filter(|c| {
-            c.name
-                .as_ref()
-                .map(|n| !row.keys.contains(n))
-                .unwrap_or(false)
+            if let Some(name) = &c.name {
+                !row.keys.contains(name) // exclude primary keys
+            } else {
+                false
+            }
         })
         .filter_map(|c| {
-            c.cast_expr("pd.newdata")
-                .map(|expr| format!("{0} = {1}", c.name.as_ref().unwrap(), expr))
+            let name = c.name.as_ref()?;
+            let expr = c.cast_expr("pd.newdata", None)?;
+            Some(format!("{name} = {expr}"))
         })
         .collect();
 
-    if set_clause.is_empty() {
-        return Ok(()); // nothing to update
-    }
-
-    // WHERE clause: only PK columns
+    // build WHERE clause: primary keys
     let where_clause: Vec<String> = row
         .keys
         .iter()
@@ -252,15 +270,11 @@ async fn apply_update(
                 .iter()
                 .find(|c| c.name.as_deref() == Some(key))
                 .and_then(|c| {
-                    c.cast_expr("pd.olddata")
-                        .map(|expr| format!("{0} = {1}", key, expr))
+                    let expr = c.cast_expr("pd.olddata", None)?;
+                    Some(format!("t.{key} = {expr}"))
                 })
         })
         .collect();
-
-    if where_clause.is_empty() {
-        return Err(anyhow::anyhow!("No matching keys found for UPDATE"));
-    }
 
     let sql = format!(
         r#"UPDATE "{schema}"."{table}" t
@@ -271,6 +285,7 @@ async fn apply_update(
         where_clause.join(" AND ")
     );
 
+    println!("{:?}", sql);
     sqlx::query(&sql)
         .bind(row.olddata.as_ref().unwrap())
         .bind(row.newdata.as_ref().unwrap())
@@ -285,7 +300,6 @@ async fn apply_insert(
     row: &PendingRow,
     db: &PgPool,
 ) -> Result<()> {
-    println!("I {:?}", row);
     let (schema, table) = {
         let parts: Vec<_> = row.tablename.split('.').collect();
         (parts[0], parts[1])
@@ -293,14 +307,18 @@ async fn apply_insert(
 
     let columns = Column::get(schema, table, db).await?;
 
-    // Column names for insert
+    // Column names and values
     let col_names: Vec<String> = columns.iter().filter_map(|c| c.name.clone()).collect();
 
-    // Values dynamically cast
     let vals: Vec<String> = columns
         .iter()
-        .filter_map(|c| c.cast_expr("pd.newdata"))
+        .filter_map(|c| c.cast_expr("pd.newdata", None))
         .collect();
+
+    // Skip insert if no valid values
+    if vals.is_empty() {
+        return Ok(());
+    }
 
     let sql = format!(
         r#"INSERT INTO "{schema}"."{table}" ({})
@@ -308,7 +326,6 @@ async fn apply_insert(
         col_names.join(", "),
         vals.join(", ")
     );
-
     println!("{:?}", sql);
 
     sqlx::query(&sql)
