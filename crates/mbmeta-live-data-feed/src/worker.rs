@@ -32,99 +32,99 @@ impl MusicbrainzReplicationWorker {
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
-        loop {
-            let replication_control = ReplicationControl::get(&self.db).await?;
-            if let Some(next_replication_sequence) = replication_control.next_replication_sequence()
-            {
-                let last_replication_date = replication_control
-                    .last_replication_date
-                    .map(|d| d.format("%y/%m/%d - %H:%M:%S").to_string())
-                    .unwrap_or("N/a".into());
+        {
+                    let replication_control = ReplicationControl::get(&self.db).await?;
+                    if let Some(next_replication_sequence) = replication_control.next_replication_sequence()
+                    {
+                        let last_replication_date = replication_control
+                            .last_replication_date
+                            .map(|d| d.format("%y/%m/%d - %H:%M:%S").to_string())
+                            .unwrap_or("N/a".into());
 
-                info!(
-                    "Starting new replication process, last replication occured on {last_replication_date}",
-                );
+                        info!(
+                            "Starting new replication process, last replication occured on {last_replication_date}",
+                        );
 
-                let mut tmpfile = NamedTempFile::new()?;
-                sqlx::query!("TRUNCATE dbmirror2.pending_data, dbmirror2.pending_keys")
-                    .execute(&self.db)
-                    .await?;
-                let writer = tmpfile.as_file_mut();
-                self.fetcher
-                    .fetch_packet(next_replication_sequence, writer)
-                    .await?;
+                        let mut tmpfile = NamedTempFile::new()?;
+                        sqlx::query!("TRUNCATE dbmirror2.pending_data, dbmirror2.pending_keys")
+                            .execute(&self.db)
+                            .await?;
+                        let writer = tmpfile.as_file_mut();
+                        self.fetcher
+                            .fetch_packet(next_replication_sequence, writer)
+                            .await?;
 
-                dbmirror::truncate_tables(&self.db).await?;
-                info!(
-                    "Replication packet {} downloaded, processing...",
-                    next_replication_sequence
-                );
-                let mut archive = get_archive(tmpfile.path())?;
-                for entry in archive.entries()? {
-                    match entry {
-                        Ok(mut entry) => {
-                            let path = entry.path()?;
+                        dbmirror::truncate_tables(&self.db).await?;
+                        info!(
+                            "Replication packet {} downloaded, processing...",
+                            next_replication_sequence
+                        );
+                        let mut archive = get_archive(tmpfile.path())?;
+                        for entry in archive.entries()? {
+                            match entry {
+                                Ok(mut entry) => {
+                                    let path = entry.path()?;
 
-                            let filename = path.as_ref().file_name().and_then(|f| f.to_str());
+                                    let filename = path.as_ref().file_name().and_then(|f| f.to_str());
 
-                            match filename {
-                                Some("pending_keys") => {
-                                    dbmirror::load_pending_keys(&self.db, &mut entry).await?;
-                                }
-                                Some("pending_data") => {
-                                    dbmirror::load_pending_data(&self.db, &mut entry).await?;
-                                }
-                                Some("REPLICATION_SEQUENCE") => {
-                                    let mut replication_sequence = String::new();
-                                    let _ = entry.read_to_string(&mut replication_sequence);
-                                    let replication_sequence = replication_sequence.trim();
-                                    let replication_sequence =
-                                        replication_sequence.parse::<i32>()?;
+                                    match filename {
+                                        Some("pending_keys") => {
+                                            dbmirror::load_pending_keys(&self.db, &mut entry).await?;
+                                        }
+                                        Some("pending_data") => {
+                                            dbmirror::load_pending_data(&self.db, &mut entry).await?;
+                                        }
+                                        Some("REPLICATION_SEQUENCE") => {
+                                            let mut replication_sequence = String::new();
+                                            let _ = entry.read_to_string(&mut replication_sequence);
+                                            let replication_sequence = replication_sequence.trim();
+                                            let replication_sequence =
+                                                replication_sequence.parse::<i32>()?;
 
-                                    if replication_sequence != next_replication_sequence {
-                                        error!(
-                                            "Replication sequence mismatch: expected {}, got {}",
-                                            next_replication_sequence, replication_sequence
-                                        );
-                                        time::sleep(std::time::Duration::from_secs(30 * 60)).await;
-                                        continue;
+                                            if replication_sequence != next_replication_sequence {
+                                                error!(
+                                                    "Replication sequence mismatch: expected {}, got {}",
+                                                    next_replication_sequence, replication_sequence
+                                                );
+                                                time::sleep(std::time::Duration::from_secs(30 * 60)).await;
+                                                continue;
+                                            }
+                                        }
+                                        Some("SCHEMA_SEQUENCE") => {
+                                            let mut schema_sequence = String::new();
+                                            let _ = entry.read_to_string(&mut schema_sequence)?;
+                                            let schema_sequence = schema_sequence.trim();
+                                            let schema_sequence = schema_sequence.parse::<i32>()?;
+                                            if !replication_control.schema_sequence_match(schema_sequence) {
+                                                error!(
+                                                    "Schema sequence mismatch: expected {}, got {}",
+                                                    replication_control
+                                                        .current_schema_sequence
+                                                        .unwrap_or_default(),
+                                                    schema_sequence
+                                                );
+                                                time::sleep(std::time::Duration::from_secs(30 * 60)).await;
+                                                continue;
+                                            }
+                                        }
+                                        Some("TIMESTAMP") => {
+                                            extract_timestamp(entry)?;
+                                        }
+                                        _ => {}
                                     }
                                 }
-                                Some("SCHEMA_SEQUENCE") => {
-                                    let mut schema_sequence = String::new();
-                                    let _ = entry.read_to_string(&mut schema_sequence)?;
-                                    let schema_sequence = schema_sequence.trim();
-                                    let schema_sequence = schema_sequence.parse::<i32>()?;
-                                    if !replication_control.schema_sequence_match(schema_sequence) {
-                                        error!(
-                                            "Schema sequence mismatch: expected {}, got {}",
-                                            replication_control
-                                                .current_schema_sequence
-                                                .unwrap_or_default(),
-                                            schema_sequence
-                                        );
-                                        time::sleep(std::time::Duration::from_secs(30 * 60)).await;
-                                        continue;
-                                    }
+                                Err(err) => {
+                                    error!("Error skipping archive entry: {err}");
+                                    break;
                                 }
-                                Some("TIMESTAMP") => {
-                                    extract_timestamp(entry)?;
-                                }
-                                _ => {}
                             }
                         }
-                        Err(err) => {
-                            error!("Error skipping archive entry: {err}");
-                            break;
-                        }
+                        dbmirror::replicate(&self.db).await?;
+
+                        info!("replication finished, sleeping");
+                        tokio::time::sleep(std::time::Duration::from_secs(30 * 60)).await;
                     }
                 }
-                dbmirror::replicate(&self.db).await?;
-
-                info!("replication finished, sleeping");
-                tokio::time::sleep(std::time::Duration::from_secs(30 * 60)).await;
-            }
-        }
     }
 }
 
