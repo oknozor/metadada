@@ -4,7 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+mbmeta-settings.workspace = true
+futures-util.workspace = true
 sqlx.workspace = true
 tokio.workspace =  true
-serde.workspace = true
 serde_json.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+tempfile.workspace = true
+tracing.workspace = true
+bzip2.workspace = true
+tar.workspace = true
+
+# keep reqwest here or it conflicts with meilisearch
+reqwest = { version = "0.12", features = ["rustls-tls"] }

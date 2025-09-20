@@ -5,6 +5,7 @@ use axum::{Extension, routing::get};
 use clap::{Parser, builder::PossibleValuesParser};
 use mbmeta_api::ApiDoc;
 use mbmeta_db::queryables::{album::Album, artist::Artist};
+use mbmeta_live_data_feed::MusicbrainzReplicationWorker;
 use mbmeta_meili::MeiliClient;
 use mbmeta_pipeline::Ingestor;
 use mbmeta_settings::Settings;
@@ -97,13 +98,17 @@ async fn serve(config: &Settings, meili_client: MeiliClient, db: PgPool) -> anyh
     };
 
     let mut pg_listener =
-        mbmeta_pg_listener::MusicbrainzPgListener::create(ingestor, db, token.clone()).await?;
+        mbmeta_pg_listener::MusicbrainzPgListener::create(ingestor, db.clone(), token.clone())
+            .await?;
+    let live_data_feed_worker = MusicbrainzReplicationWorker::new(db, config);
 
     let axum_token = token.clone();
     let server = axum::serve(listener, router).with_graceful_shutdown(async move {
         axum_token.cancelled().await;
     });
+    // TODO: pass cancellation token here
     let pg_listener_task = pg_listener.run();
+    let live_data_feed_task = live_data_feed_worker.run();
 
     tokio::select! {
         result = server => {
@@ -112,6 +117,10 @@ async fn serve(config: &Settings, meili_client: MeiliClient, db: PgPool) -> anyh
         },
         result = pg_listener_task => {
             info!("Pg Listener shutdown: {:?}", result);
+            result?;
+        },
+        result = live_data_feed_task => {
+            info!("Live Data Feed worker shutdown: {:?}", result);
             result?;
         },
         _ = token.cancelled() => {

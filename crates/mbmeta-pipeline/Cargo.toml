@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 futures.workspace = true
-tokio.workspace = true
 anyhow.workspace = true
 sqlx.workspace = true
 mbmeta-db.workspace = true
