@@ -132,8 +132,6 @@ pub async fn truncate_tables(db: &PgPool) -> anyhow::Result<()> {
 
 #[derive(sqlx::FromRow, Debug)]
 struct PendingRow {
-    seqid: i64,
-    xid: i64,
     op: CharType,
     olddata: Option<Value>,
     newdata: Option<Value>,
@@ -161,9 +159,7 @@ impl PendingRow {
         sqlx::query_as!(
             PendingRow,
             r#"
-                SELECT pd.xid,
-                       pd.seqid,
-                       pd.tablename,
+                SELECT pd.tablename,
                        pd.op,
                        pk.keys,
                        pd.olddata,

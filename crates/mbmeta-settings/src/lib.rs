@@ -17,6 +17,8 @@ pub struct Settings {
     pub api: ApiSettings,
     pub sync: SyncSettings,
     pub musicbrainz: MusicbrainzSettings,
+    pub tables: TableSettings,
+    pub schema: SchemaSettings,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -49,6 +51,28 @@ pub struct DBSettings {
 pub struct MusicbrainzSettings {
     pub url: String,
     pub token: String,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct TableSettings {
+    keep_only: Vec<String>,
+}
+
+impl TableSettings {
+    pub fn should_skip(&self, table: &str) -> bool {
+        !self.keep_only.is_empty() && !self.keep_only.contains(&table.to_string())
+    }
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct SchemaSettings {
+    keep_only: Vec<String>,
+}
+
+impl SchemaSettings {
+    pub fn should_skip(&self, schema: &str) -> bool {
+        !self.keep_only.is_empty() && !self.keep_only.contains(&schema.to_string())
+    }
 }
 
 impl Settings {
