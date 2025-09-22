@@ -88,11 +88,13 @@ impl PendingData {
     fn newdata(&self) -> Option<Value> {
         self.newdata
             .as_ref()
-            .and_then(|s| serde_json::from_str(s).ok())
+            .map(|s| s.replace("\\\\", "\\"))
+            .and_then(|s| serde_json::from_str(&s).ok())
     }
 
     fn olddata(&self) -> Option<Value> {
-        serde_json::from_str(&self.olddata).ok()
+        let olddata = self.olddata.replace("\\\\", "\\");
+        serde_json::from_str(&olddata).ok()
     }
 
     fn get_where_clause(&self, ids: &[String]) -> anyhow::Result<String> {
@@ -176,6 +178,7 @@ pub fn sort_pending_data(data: Vec<PendingData>) -> Vec<PendingData> {
     });
     data
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
