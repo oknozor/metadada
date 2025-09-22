@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::path::Path;
 
 use crate::download::github;
 use crate::{MbLight, download::musicbrainz::MUSICBRAINZ_FTP, tar_helper::get_archive};
@@ -87,7 +88,7 @@ impl MbLight {
         Ok(())
     }
 
-    async fn create_tables(&mut self, local_path: &PathBuf) -> Result<()> {
+    async fn create_tables(&mut self, local_path: &Path) -> Result<()> {
         self.run_sql_file(local_path.join("Extensions.sql").to_str().unwrap())
             .await?;
         self.run_sql_file(

@@ -31,10 +31,8 @@ impl MbLight {
     ) -> Result<(), ReplicationError> {
         let response = self.client.get(url).send().await?;
 
-        if response.status() != StatusCode::OK {
-            return Err(ReplicationError::HttpStatusError(
-                response.status().as_u16(),
-            ));
+        if response.status() == StatusCode::NOT_FOUND {
+            return Err(ReplicationError::NotFound);
         }
 
         #[cfg(not(feature = "progress"))]

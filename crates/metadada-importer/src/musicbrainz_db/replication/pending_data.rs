@@ -18,12 +18,12 @@ pub struct PendindingKey {
 }
 
 impl PendindingKey {
-    pub fn to_entry(self) -> (String, Vec<String>) {
+    pub fn into_entry(self) -> (String, Vec<String>) {
         (
             self.fulltable,
             self.keys
                 .split(',')
-                .map(|s| s.trim_matches(&['{', '}']))
+                .map(|s| s.trim_matches(['{', '}']))
                 .map(String::from)
                 .collect(),
         )
@@ -95,7 +95,7 @@ impl PendingData {
         serde_json::from_str(&self.olddata).ok()
     }
 
-    fn get_where_clause(&self, ids: &Vec<String>) -> anyhow::Result<String> {
+    fn get_where_clause(&self, ids: &[String]) -> anyhow::Result<String> {
         let old_obj = self
             .olddata()
             .ok_or_else(|| anyhow::anyhow!("missing data"))?;

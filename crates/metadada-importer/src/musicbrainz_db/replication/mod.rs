@@ -26,9 +26,10 @@ impl MbLight {
         loop {
             match self.apply_pending_replication().await {
                 Ok(_) => {}
-                Err(ReplicationError::HttpStatusError(status)) => {
-                    error!("HTTP status error applying pending replication: {}", status);
+                Err(ReplicationError::NotFound) => {
+                    info!("Reached last replication packet, sending reindex signal");
                     self.reindex_sender.send(()).await?;
+                    info!("Waiting for 15 minutes for a fresh replication packet");
                     time::sleep(time::Duration::from_secs(60 * 15)).await;
                 }
                 Err(err) => {
@@ -115,7 +116,7 @@ impl MbLight {
 
                                 for result in reader.deserialize() {
                                     let record: PendindingKey = result?;
-                                    let (fulltable, keys) = record.to_entry();
+                                    let (fulltable, keys) = record.into_entry();
                                     pending_keys.insert(fulltable, keys);
                                 }
                             }
