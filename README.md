@@ -109,7 +109,7 @@ metadada__SYNC__ALBUM_BATCH_SIZE=5000
 
 ## Todos
 - [x] mbslave optimization (ignore unused tables)
-- [ ] apply ignored tables to replication
+- [x] apply ignored tables to replication
 - [ ] ~~pg_notify listener for reindexing~~ (use a simple mpsc channel)
 - [x] preindexing image and link transformation
 - [ ] implement `includeTracks` param using meilisearch `attributesToRetrieve`
@@ -117,7 +117,7 @@ metadada__SYNC__ALBUM_BATCH_SIZE=5000
 - [ ] implement /recent endpoints
 - [x] Distribute docker multiarch image
 - [x] Helm charts (see: homelability repo)
-- [ ] move replication logic to importer so we can have both the CLI and the lib
+- [x] move replication logic to importer so we can have both the CLI and the lib
 
 ## Licence
 

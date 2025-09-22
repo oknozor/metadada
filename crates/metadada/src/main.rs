@@ -5,12 +5,15 @@ use axum::{Extension, routing::get};
 use clap::{Parser, builder::PossibleValuesParser};
 use metadada_api::ApiDoc;
 use metadada_db::queryables::{album::Album, artist::Artist};
+use metadada_importer::MbLight;
 use metadada_meili::MeiliClient;
 use metadada_pipeline::Ingestor;
 use metadada_settings::Settings;
-use metadada_importer::MbLight;
 use sqlx::{PgPool, postgres::PgPoolOptions};
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::{
+    signal::unix::{SignalKind, signal},
+    sync::mpsc::Receiver,
+};
 use tokio_util::sync::CancellationToken;
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -39,7 +42,8 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "tower_http=debug,metadada=debug,mbeta-pipeline=debug,metadada_importer=debug".into()
+                "tower_http=debug,metadada=debug,mbeta-pipeline=debug,metadada_importer=debug"
+                    .into()
             }),
         ))
         .with(tracing_subscriber::fmt::layer())
@@ -54,14 +58,12 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
-    let mut mblight = MbLight::new(config.clone(), db.clone()).await?;
 
-    if !mblight.has_data().await? {
-        let local_path = metadada_importer::downloader::github::download_musicbrainz_sql().await?;
-        mblight.create_schemas().await?;
-        mblight.create_tables(&local_path).await?;
-        mblight.ingest_musicbrainz_data().await?;
-        mblight.run_all_scripts(local_path).await?;
+    let (tx, rx) = tokio::sync::mpsc::channel(3);
+    let mut mblight = MbLight::new(config.clone(), db.clone(), tx);
+
+    if !mblight.has_data("musicbrainz", "artist").await? {
+        mblight.init().await?;
     }
 
     sqlx::migrate!("../../migrations").run(&db).await?;
@@ -69,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli {
         Cli::Init { index } => initial_indexing(meili_client, db, &index).await?,
-        Cli::Serve => serve(config, meili_client, mblight, db).await?,
+        Cli::Serve => serve(config, meili_client, mblight, db, rx).await?,
     }
     Ok(())
 }
@@ -79,6 +81,7 @@ async fn serve(
     meili_client: MeiliClient,
     mblight: MbLight,
     db: PgPool,
+    rx: Receiver<()>,
 ) -> anyhow::Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.api.port));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -114,16 +117,20 @@ async fn serve(
         meili_client: meili_client.clone(),
     };
 
-    let mut pg_listener =
-        metadada_pg_listener::MusicbrainzPgListener::create(ingestor, db.clone(), token.clone())
-            .await?;
+    let mut index_listener = metadada_pg_listener::MusicbrainzPgListener::create(
+        ingestor,
+        db.clone(),
+        rx,
+        token.clone(),
+    )
+    .await?;
 
     let axum_token = token.clone();
     let server = axum::serve(listener, router).with_graceful_shutdown(async move {
         axum_token.cancelled().await;
     });
     // TODO: pass cancellation token here
-    let pg_listener_task = pg_listener.run();
+    let index_listener_task = index_listener.run();
     let live_data_feed_task = mblight.apply_all_pending_replication();
 
     tokio::select! {
@@ -131,7 +138,7 @@ async fn serve(
             info!("Server shutdown: {:?}", result);
             result?;
         },
-        result = pg_listener_task => {
+        result = index_listener_task => {
             info!("Pg Listener shutdown: {:?}", result);
             result?;
         },

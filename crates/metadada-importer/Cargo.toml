@@ -1,0 +1,31 @@
+[package]
+name = "metadada-importer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio.workspace = true
+tokio-util.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+config.workspace = true
+tempfile.workspace = true
+bzip2.workspace = true
+tar.workspace = true
+bytes.workspace = true
+octocrab.workspace = true
+sqlx.workspace = true
+metadada-settings.workspace = true
+tracing.workspace = true
+csv.workspace = true
+thiserror.workspace = true
+
+
+reqwest = { version = "0.12.23", features = ["stream"] }
+indicatif = { workspace = true, optional = true }
+
+[features]
+default = []
+progress = ["indicatif"]
