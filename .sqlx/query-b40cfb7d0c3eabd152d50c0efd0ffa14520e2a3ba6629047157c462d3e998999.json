@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                 SELECT FROM information_schema.tables\n                 WHERE table_schema = $1 AND table_name = $2\n             )",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Name",
+        "Name"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b40cfb7d0c3eabd152d50c0efd0ffa14520e2a3ba6629047157c462d3e998999"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE replication_control SET current_replication_sequence = $1, last_replication_date = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3e9036309a56a68fcdc78b92b9b732917a6677c0f10b679828f808a8d0d67c79"
+}
