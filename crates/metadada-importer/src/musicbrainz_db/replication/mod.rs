@@ -182,8 +182,15 @@ impl MbLight {
         let mut tx = self.db.begin().await?;
         info!("processing {} pending data", pending_data.len());
         for data in pending_data {
-            if let Some(query) = data.to_sql_inline(pending_keys)? {
-                sqlx::query(&query).execute(&mut *tx).await?;
+            match data.to_sql_inline(pending_keys) {
+                Ok(Some(query)) => {
+                    sqlx::query(&query).execute(&mut *tx).await?;
+                }
+                Err(e) => {
+                    error!("Failed to process pending data: {data:?}");
+                    return Err(e)?;
+                }
+                Ok(None) => {}
             }
         }
         tx.commit().await?;

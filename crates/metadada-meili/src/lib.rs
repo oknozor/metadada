@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use metadada_db::queryables::{QueryAble, album::Album, artist::Artist};
 use meilisearch_sdk::{client::Client, errors::Error, task_info::TaskInfo};
+use metadada_db::queryables::{QueryAble, album::Album, artist::Artist};
 
 #[derive(Clone)]
 pub struct MeiliClient {

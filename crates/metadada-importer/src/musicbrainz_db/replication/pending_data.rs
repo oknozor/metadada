@@ -39,7 +39,7 @@ impl PendingData {
         match self.op {
             'i' => {
                 let obj = self
-                    .olddata()
+                    .newdata()
                     .ok_or_else(|| anyhow::anyhow!("missing data"))?;
                 let obj = obj.as_object().unwrap();
                 let col_names: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
