@@ -4,7 +4,7 @@ use crate::indexables::album::AlbumInfo;
 use crate::queryables::QueryAble;
 use crate::queryables::artist::Artist;
 use crate::{Data, Rating};
-use mbmeta_settings::ALBUM_BATCH_SIZE;
+use metadada_settings::ALBUM_BATCH_SIZE;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use sqlx::types::Json;

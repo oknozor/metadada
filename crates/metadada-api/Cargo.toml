@@ -1,10 +1,10 @@
 [package]
-name = "mbmeta-api"
+name = "metadada-api"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mbmeta-db.workspace = true
+metadada-db.workspace = true
 axum.workspace = true
 utoipa-axum.workspace = true
 utoipa.workspace = true

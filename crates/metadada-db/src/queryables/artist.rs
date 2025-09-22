@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use mbmeta_settings::ARTIST_BATCH_SIZE;
+use metadada_settings::ARTIST_BATCH_SIZE;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;

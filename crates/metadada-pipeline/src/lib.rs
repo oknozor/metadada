@@ -1,8 +1,8 @@
 use anyhow::Result;
 use futures::stream::{self, StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
-use mbmeta_db::{Data, queryables::QueryAble};
-use mbmeta_meili::{MeiliClient, Status};
+use metadada_db::{Data, queryables::QueryAble};
+use metadada_meili::{MeiliClient, Status};
 use sqlx::{PgPool, types::Uuid};
 use tracing::{error, info};
 

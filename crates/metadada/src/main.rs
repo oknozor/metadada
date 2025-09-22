@@ -3,11 +3,11 @@ use std::net::SocketAddr;
 use autometrics::prometheus_exporter;
 use axum::{Extension, routing::get};
 use clap::{Parser, builder::PossibleValuesParser};
-use mbmeta_api::ApiDoc;
-use mbmeta_db::queryables::{album::Album, artist::Artist};
-use mbmeta_meili::MeiliClient;
-use mbmeta_pipeline::Ingestor;
-use mbmeta_settings::Settings;
+use metadada_api::ApiDoc;
+use metadada_db::queryables::{album::Album, artist::Artist};
+use metadada_meili::MeiliClient;
+use metadada_pipeline::Ingestor;
+use metadada_settings::Settings;
 use metadada_importer::MbLight;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::signal::unix::{SignalKind, signal};
@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "tower_http=debug,mbmeta=debug,mbeta-pipeline=debug,metadada_importer=debug".into()
+                "tower_http=debug,metadada=debug,mbeta-pipeline=debug,metadada_importer=debug".into()
             }),
         ))
         .with(tracing_subscriber::fmt::layer())
@@ -83,7 +83,7 @@ async fn serve(
     let addr = SocketAddr::from(([0, 0, 0, 0], config.api.port));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-    let app = mbmeta_api::router()
+    let app = metadada_api::router()
         .layer(TraceLayer::new_for_http())
         .layer(Extension(meili_client.client.clone()));
 
@@ -115,7 +115,7 @@ async fn serve(
     };
 
     let mut pg_listener =
-        mbmeta_pg_listener::MusicbrainzPgListener::create(ingestor, db.clone(), token.clone())
+        metadada_pg_listener::MusicbrainzPgListener::create(ingestor, db.clone(), token.clone())
             .await?;
 
     let axum_token = token.clone();

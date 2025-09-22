@@ -1,5 +1,5 @@
 [package]
-name = "mbmeta-pg-listener"
+name = "metadada-pg-listener"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,5 +9,5 @@ tracing.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-mbmeta-db.workspace = true
-mbmeta-pipeline.workspace = true
+metadada-db.workspace = true
+metadada-pipeline.workspace = true

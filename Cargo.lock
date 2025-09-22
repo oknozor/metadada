@@ -1663,105 +1663,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
-name = "mbmeta"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "autometrics",
- "axum",
- "clap",
- "mbmeta-api",
- "mbmeta-db",
- "mbmeta-meili",
- "mbmeta-pg-listener",
- "mbmeta-pipeline",
- "mbmeta-settings",
- "metadada-importer",
- "sqlx",
- "tokio",
- "tokio-util",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-axum",
- "utoipa-swagger-ui",
-]
-
-[[package]]
-name = "mbmeta-api"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "autometrics",
- "axum",
- "axum-macros",
- "futures",
- "mbmeta-db",
- "meilisearch-sdk",
- "serde",
- "serde_json",
- "utoipa",
- "utoipa-axum",
-]
-
-[[package]]
-name = "mbmeta-db"
-version = "0.1.0"
-dependencies = [
- "mbmeta-settings",
- "serde",
- "sqlx",
- "tokio",
- "url",
- "utoipa",
- "uuid",
-]
-
-[[package]]
-name = "mbmeta-meili"
-version = "0.1.0"
-dependencies = [
- "mbmeta-db",
- "meilisearch-sdk",
-]
-
-[[package]]
-name = "mbmeta-pg-listener"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "mbmeta-db",
- "mbmeta-pipeline",
- "sqlx",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-name = "mbmeta-pipeline"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "indicatif",
- "mbmeta-db",
- "mbmeta-meili",
- "sqlx",
- "tracing",
-]
-
-[[package]]
-name = "mbmeta-settings"
-version = "0.1.0"
-dependencies = [
- "config",
- "once_cell",
- "serde",
-]
-
-[[package]]
 name = "md-5"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1818,6 +1719,62 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
+name = "metadada"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "autometrics",
+ "axum",
+ "clap",
+ "metadada-api",
+ "metadada-db",
+ "metadada-importer",
+ "metadada-meili",
+ "metadada-pg-listener",
+ "metadada-pipeline",
+ "metadada-settings",
+ "sqlx",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-axum",
+ "utoipa-swagger-ui",
+]
+
+[[package]]
+name = "metadada-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "autometrics",
+ "axum",
+ "axum-macros",
+ "futures",
+ "meilisearch-sdk",
+ "metadada-db",
+ "serde",
+ "serde_json",
+ "utoipa",
+ "utoipa-axum",
+]
+
+[[package]]
+name = "metadada-db"
+version = "0.1.0"
+dependencies = [
+ "metadada-settings",
+ "serde",
+ "sqlx",
+ "tokio",
+ "url",
+ "utoipa",
+ "uuid",
+]
+
+[[package]]
 name = "metadada-importer"
 version = "0.1.0"
 dependencies = [
@@ -1829,7 +1786,7 @@ dependencies = [
  "csv",
  "futures-util",
  "indicatif",
- "mbmeta-settings",
+ "metadada-settings",
  "octocrab",
  "reqwest",
  "serde",
@@ -1842,6 +1799,49 @@ dependencies = [
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "metadada-meili"
+version = "0.1.0"
+dependencies = [
+ "meilisearch-sdk",
+ "metadada-db",
+]
+
+[[package]]
+name = "metadada-pg-listener"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "metadada-db",
+ "metadada-pipeline",
+ "sqlx",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+name = "metadada-pipeline"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "indicatif",
+ "metadada-db",
+ "metadada-meili",
+ "sqlx",
+ "tracing",
+]
+
+[[package]]
+name = "metadada-settings"
+version = "0.1.0"
+dependencies = [
+ "config",
+ "once_cell",
+ "serde",
 ]
 
 [[package]]

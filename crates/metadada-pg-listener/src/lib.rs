@@ -1,5 +1,5 @@
-use mbmeta_db::queryables::{QueryAble, album::Album, artist::Artist};
-use mbmeta_pipeline::Ingestor;
+use metadada_db::queryables::{QueryAble, album::Album, artist::Artist};
+use metadada_pipeline::Ingestor;
 use sqlx::{PgPool, postgres::PgListener};
 use tokio::select;
 use tokio_util::sync::CancellationToken;

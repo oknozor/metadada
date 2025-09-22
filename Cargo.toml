@@ -3,13 +3,13 @@ members = ["crates/*"]
 resolver = "3"
 
 [workspace.dependencies]
-mbmeta-settings = { path = "crates/mbmeta-settings" }
-mbmeta-db = { path = "crates/mbmeta-db" }
-mbmeta-meili = { path = "crates/mbmeta-meili" }
-mbmeta-pipeline = { path = "crates/mbmeta-pipeline" }
-mbmeta-api = { path = "crates/mbmeta-api" }
-mbmeta-pg-listener = { path = "crates/mbmeta-pg-listener" }
-mbmeta-live-data-feed = { path = "crates/mbmeta-live-data-feed" }
+metadada-settings = { path = "crates/metadada-settings" }
+metadada-db = { path = "crates/metadada-db" }
+metadada-meili = { path = "crates/metadada-meili" }
+metadada-pipeline = { path = "crates/metadada-pipeline" }
+metadada-api = { path = "crates/metadada-api" }
+metadada-pg-listener = { path = "crates/metadada-pg-listener" }
+metadada-live-data-feed = { path = "crates/metadada-live-data-feed" }
 metadada-importer = { path = "crates/metadada-importer" }
 
 tokio = { version = "1", features = ["full"] }

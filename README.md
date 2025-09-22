@@ -89,22 +89,22 @@ Also be aware that automatic update using the [MusicBrainz Live Data Feed](https
 
 ```
 # Database configuration
-MBMETA__DB__USER=musicbrainz
-MBMETA__DB__PASSWORD=musicbrainz
-MBMETA__DB__HOST=localhost
-MBMETA__DB__PORT=5432
-MBMETA__DB__NAME=musicbrainz
+metadada__DB__USER=musicbrainz
+metadada__DB__PASSWORD=musicbrainz
+metadada__DB__HOST=localhost
+metadada__DB__PORT=5432
+metadada__DB__NAME=musicbrainz
 
 # Meilisearch configuration
-MBMETA__MEILI__URL=http://localhost:7700
-MBMETA__MEILI__API_KEY=masterKey123
+metadada__MEILI__URL=http://localhost:7700
+metadada__MEILI__API_KEY=masterKey123
 
 # API configuration
-MBMETA__API__PORT=3000
+metadada__API__PORT=3000
 
 # Sync configuration
-MBMETA__SYNC__ARTIST_BATCH_SIZE=10000
-MBMETA__SYNC__ALBUM_BATCH_SIZE=5000
+metadada__SYNC__ARTIST_BATCH_SIZE=10000
+metadada__SYNC__ALBUM_BATCH_SIZE=5000
 ```
 
 ## Todos

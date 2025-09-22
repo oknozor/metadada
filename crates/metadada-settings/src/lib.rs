@@ -78,13 +78,13 @@ impl SchemaSettings {
 impl Settings {
     pub fn get() -> Result<Self, config::ConfigError> {
         let mut config = Config::builder().add_source(
-            Environment::with_prefix("MBMETA")
+            Environment::with_prefix("metadada")
                 .try_parsing(true)
                 .prefix_separator("__")
                 .separator("__"),
         );
 
-        let etc_config = PathBuf::from("/etc/mbmeta/config.toml");
+        let etc_config = PathBuf::from("/etc/metadada/config.toml");
         if etc_config.exists() {
             config = config.add_source(File::from(etc_config));
         }

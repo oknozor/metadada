@@ -73,7 +73,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/mbmeta
+          path: target/${{ matrix.target }}/release/metadada
 
   upload_to_release:
     needs: [build, upload_license]
@@ -89,60 +89,60 @@ jobs:
       - name: Copy artifacts to archive
         run: |
           mkdir x86_64-unknown-linux-musl
-          cp -r /home/runner/artifacts/x86_64-unknown-linux-musl/mbmeta x86_64-unknown-linux-musl/mbmeta
-          chmod +x -R  x86_64-unknown-linux-musl/mbmeta
+          cp -r /home/runner/artifacts/x86_64-unknown-linux-musl/metadada x86_64-unknown-linux-musl/metadada
+          chmod +x -R  x86_64-unknown-linux-musl/metadada
           cp -r /home/runner/artifacts/LICENSE/LICENSE x86_64-unknown-linux-musl/
-          tar -czf mbmeta-x86_64-unknown-linux-musl.tar.gz x86_64-unknown-linux-musl/*
+          tar -czf metadada-x86_64-unknown-linux-musl.tar.gz x86_64-unknown-linux-musl/*
 
           mkdir armv7-unknown-linux-musleabihf
-          cp -r /home/runner/artifacts/armv7-unknown-linux-musleabihf/mbmeta armv7-unknown-linux-musleabihf/mbmeta
-          chmod +x -R  armv7-unknown-linux-musleabihf/mbmeta
+          cp -r /home/runner/artifacts/armv7-unknown-linux-musleabihf/metadada armv7-unknown-linux-musleabihf/metadada
+          chmod +x -R  armv7-unknown-linux-musleabihf/metadada
           cp -r /home/runner/artifacts/LICENSE/LICENSE armv7-unknown-linux-musleabihf/
-          tar -czf mbmeta-unknown-linux-musleabihf.tar.gz armv7-unknown-linux-musleabihf/*
+          tar -czf metadada-unknown-linux-musleabihf.tar.gz armv7-unknown-linux-musleabihf/*
 
           mkdir aarch64-unknown-linux-gnu
-          cp -r /home/runner/artifacts/aarch64-unknown-linux-gnu/mbmeta aarch64-unknown-linux-gnu/mbmeta
-          chmod +x -R  aarch64-unknown-linux-gnu/mbmeta
+          cp -r /home/runner/artifacts/aarch64-unknown-linux-gnu/metadada aarch64-unknown-linux-gnu/metadada
+          chmod +x -R  aarch64-unknown-linux-gnu/metadada
           cp -r /home/runner/artifacts/LICENSE/LICENSE aarch64-unknown-linux-gnu/
-          tar -czf mbmeta-unknown-linux-gnu.tar.gz aarch64-unknown-linux-gnu/*
+          tar -czf metadada-unknown-linux-gnu.tar.gz aarch64-unknown-linux-gnu/*
 
           mkdir x86_64-apple-darwin
-          cp -r /home/runner/artifacts/x86_64-apple-darwin/mbmeta x86_64-apple-darwin/mbmeta
-          chmod +x -R  x86_64-apple-darwin/mbmeta
+          cp -r /home/runner/artifacts/x86_64-apple-darwin/metadada x86_64-apple-darwin/metadada
+          chmod +x -R  x86_64-apple-darwin/metadada
           cp -r /home/runner/artifacts/LICENSE/LICENSE x86_64-apple-darwin/
-          tar -czf oknozor-mbmeta-apple-darwin.tar.gz x86_64-apple-darwin/*
+          tar -czf oknozor-metadada-apple-darwin.tar.gz x86_64-apple-darwin/*
 
       - uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: oknozor-mbmeta-unknown-linux-musl.tar.gz
+          file: oknozor-metadada-unknown-linux-musl.tar.gz
           tag: ${{ github.ref }}
-          asset_name: oknozor-mbmeta{{ github.ref_name }}-x86_64-unknown-linux-musl.tar.gz
+          asset_name: oknozor-metadada{{ github.ref_name }}-x86_64-unknown-linux-musl.tar.gz
 
       - uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: oknozor-mbmeta-unknown-linux-musleabihf.tar.gz
+          file: oknozor-metadada-unknown-linux-musleabihf.tar.gz
           tag: ${{ github.ref_name }}
-          asset_name: oknozor-mbmeta{{ github.ref_name }}-armv7-unknown-linux-musleabihf.tar.gz
+          asset_name: oknozor-metadada{{ github.ref_name }}-armv7-unknown-linux-musleabihf.tar.gz
 
       - uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: mbmeta-unknown-linux-gnu.tar.gz
+          file: metadada-unknown-linux-gnu.tar.gz
           tag: ${{ github.ref_name }}
-          asset_name: mbmeta{{ github.ref_name }}-aarch64-unknown-linux-gnu.tar.gz
+          asset_name: metadada{{ github.ref_name }}-aarch64-unknown-linux-gnu.tar.gz
 
       - uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: mbmeta-apple-darwin.tar.gz
+          file: metadada-apple-darwin.tar.gz
           tag: ${{ github.ref_name }}
-          asset_name: mbmeta{{ github.ref_name }}-x86_64-apple-darwin.tar.gz
+          asset_name: metadada{{ github.ref_name }}-x86_64-apple-darwin.tar.gz
 
   docker:
     needs: [build]
-    name: Docker publish mbmeta:latest
+    name: Docker publish metadada:latest
     runs-on: ubuntu-latest
     outputs:
       latest-sha: ${{ steps.docker_build.outputs.digest }}

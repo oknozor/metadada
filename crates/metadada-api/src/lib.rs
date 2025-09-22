@@ -1,4 +1,4 @@
-use mbmeta_db::indexables::{album::AlbumInfo, artist::ArtistInfo};
+use metadada_db::indexables::{album::AlbumInfo, artist::ArtistInfo};
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 use utoipa_axum::router::OpenApiRouter;

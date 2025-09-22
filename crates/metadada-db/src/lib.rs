@@ -1,4 +1,4 @@
-use mbmeta_settings::Settings;
+use metadada_settings::Settings;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow, types::Json};
 

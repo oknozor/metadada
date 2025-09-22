@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use mbmeta_db::queryables::{QueryAble, album::Album, artist::Artist};
+use metadada_db::queryables::{QueryAble, album::Album, artist::Artist};
 use meilisearch_sdk::{client::Client, errors::Error, task_info::TaskInfo};
 
 #[derive(Clone)]
