@@ -23,7 +23,7 @@ csv.workspace = true
 thiserror.workspace = true
 
 
-reqwest = { version = "0.12.23", features = ["stream"] }
+reqwest = { version = "0.12.23", features = ["stream" ,"rustls-tls"] }
 indicatif = { workspace = true, optional = true }
 
 [features]
