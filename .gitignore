@@ -1,3 +1,5 @@
 target/
 data/
 initdb/
+config.toml
+.zed
