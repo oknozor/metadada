@@ -5,7 +5,7 @@ use std::fs;
 use tempfile::env::temp_dir;
 use tracing::error;
 
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::MultiProgress;
 
 pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
     let octocrab = Octocrab::builder().build()?;
@@ -34,6 +34,8 @@ pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
 
 use std::path::PathBuf;
 
+use crate::progress::get_progress_bar;
+
 async fn download_dir(
     client: reqwest::Client,
     octocrab: Octocrab,
@@ -53,22 +55,11 @@ async fn download_dir(
         .await?
         .items;
 
-    let len = contents.len() as u64;
-
-    let pb = {
-        let pb = mp.add(ProgressBar::new(len));
-        pb.set_style(
-            ProgressStyle::default_bar()
-                .template("{msg} [{bar:40.green/white}] {pos}/{len}")
-                .unwrap()
-                .progress_chars("##-"),
-        );
-        pb.set_message(format!(
-            "Dir {}",
-            local_path.file_name().unwrap_or_default().to_string_lossy()
-        ));
-        pb
-    };
+    let pb = mp.add(get_progress_bar(contents.len() as u64)?);
+    pb.set_message(format!(
+        "Dir {}",
+        local_path.file_name().unwrap_or_default().to_string_lossy()
+    ));
 
     let mut files = vec![];
     for item in contents {

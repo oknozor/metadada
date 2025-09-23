@@ -3,10 +3,9 @@ use std::{
     io::{BufWriter, Write},
 };
 
-use crate::{MbLight, error::ReplicationError};
+use crate::{MbLight, error::ReplicationError, progress::get_progress_bar};
 use anyhow::Result;
 use futures_util::StreamExt;
-use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::StatusCode;
 
 pub const MUSICBRAINZ_FTP: &str = "http://ftp.musicbrainz.org/pub/musicbrainz/data/fullexport";
@@ -37,17 +36,8 @@ impl MbLight {
 
         let total_size = response.content_length().unwrap_or(0);
 
-        let pb = {
-            let pb = ProgressBar::new(total_size);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("{msg}\n - [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
-                    .unwrap()
-                    .progress_chars("=>-"),
-            );
-            pb.set_message(format!("Downloading {}", url));
-            pb
-        };
+        let pb = get_progress_bar(total_size)?;
+        pb.set_message(format!("Downloading {}", url));
 
         let mut writer = BufWriter::with_capacity(8 * 1024 * 1024, tmpfile);
         let mut stream = response.bytes_stream();

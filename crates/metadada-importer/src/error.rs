@@ -1,3 +1,5 @@
+use indicatif::style::TemplateError;
+
 #[derive(Debug, thiserror::Error)]
 
 pub enum ReplicationError {
@@ -23,4 +25,6 @@ pub enum ReplicationError {
     SequenceMissmatch { expected: i32, got: i32 },
     #[error("Replication schema missmatch, expected {expected} but got {got}")]
     SchemaMissmatch { expected: i32, got: i32 },
+    #[error("Progress bar template error: {0}")]
+    ProgressBarTemplate(#[from] TemplateError),
 }

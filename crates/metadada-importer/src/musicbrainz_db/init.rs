@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use crate::download::github;
+use crate::progress::get_progress_bar;
 use crate::{MbLight, download::musicbrainz::MUSICBRAINZ_FTP, tar_helper::get_archive};
 use anyhow::Context;
 use anyhow::Result;
-use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
 use tracing::{error, info};
@@ -166,16 +166,8 @@ impl MbLight {
                             continue;
                         }
 
-                        let pb = {
-                            let pb = ProgressBar::new(entry_size);
-                            let style = ProgressStyle::default_bar()
-                                            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) - {msg}")
-                                            .unwrap()
-                                            .progress_chars("#>-");
-                            pb.set_style(style);
-                            pb.set_message(table.to_string());
-                            pb
-                        };
+                        let pb = get_progress_bar(entry_size)?;
+                        pb.set_message(table.to_string());
 
                         self.pg_copy(entry, schema, table, pb)
                             .await

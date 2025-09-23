@@ -8,6 +8,7 @@ use tracing::info;
 pub mod download;
 mod error;
 mod musicbrainz_db;
+pub(crate) mod progress;
 mod tar_helper;
 
 pub struct MbLight {

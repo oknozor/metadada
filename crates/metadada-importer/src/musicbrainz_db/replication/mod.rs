@@ -6,10 +6,10 @@ use crate::{
     musicbrainz_db::replication::{
         pending_data::PendingData, replication_control::ReplicationControl,
     },
+    progress::get_progress_bar,
     tar_helper::get_archive,
 };
 use anyhow::anyhow;
-use indicatif::ProgressBar;
 use itertools::Itertools;
 use sqlx::types::chrono::{DateTime, Utc};
 use tempfile::NamedTempFile;
@@ -107,11 +107,11 @@ impl MbLight {
                 debug!("processing {}", filename.unwrap_or("unknown"));
                 match filename {
                     Some("pending_data") => {
-                        let pb = ProgressBar::new(entry.size());
+                        let pb = get_progress_bar(entry.size())?;
                         self.pg_copy(entry, "dbmirror2", "pending_data", pb).await?;
                     }
                     Some("pending_keys") => {
-                        let pb = ProgressBar::new(entry.size());
+                        let pb = get_progress_bar(entry.size())?;
                         self.pg_copy(entry, "dbmirror2", "pending_keys", pb).await?;
                     }
                     Some("REPLICATION_SEQUENCE") => {
@@ -157,15 +157,8 @@ impl MbLight {
     async fn apply_pending_data(&self) -> anyhow::Result<()> {
         let pending_data = PendingData::all(&self.db).await?;
         info!("Processing {} pending data ...", pending_data.len());
-
-        let pb = indicatif::ProgressBar::new(pending_data.len() as u64);
-        pb.set_style(
-            indicatif::ProgressStyle::default_bar()
-                .template("[{bar:40.cyan/blue}] {pos}/{len} ({eta}) - {msg}")?
-                .progress_chars("#>-"),
-        );
-
-        let chunked_data = pending_data.into_iter().chunk_by(|data| data.xid.clone());
+        let pb = get_progress_bar(pending_data.len() as u64)?;
+        let chunked_data = pending_data.into_iter().chunk_by(|data| data.xid);
 
         for (xid, group) in chunked_data.into_iter() {
             let mut tx = self.db.begin().await?;
