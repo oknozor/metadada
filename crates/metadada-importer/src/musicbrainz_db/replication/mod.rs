@@ -156,7 +156,11 @@ impl MbLight {
     }
 
     async fn apply_pending_data(&self) -> anyhow::Result<()> {
-        let pending_data = PendingData::all(&self.db).await?;
+        let mut pending_data = PendingData::all(&self.db).await?;
+        pending_data.retain(|p| {
+            let (schema, table) = p.split_table_schema();
+            !self.config.schema.should_skip(schema) && !self.config.tables.should_skip(table)
+        });
         info!("Processing {} pending data ...", pending_data.len());
         let pb = get_progress_bar(pending_data.len() as u64)?;
         let chunked_data = pending_data.into_iter().chunk_by(|data| data.xid);
