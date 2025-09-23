@@ -52,6 +52,19 @@ INSERT INTO Config (Key, Value)
         ON CONFLICT(Key) DO UPDATE SET Value = excluded.Value
 ```
 
+## Todos
+- [x] ~~mbslave optimization (ignore unused tables)~~ Write our own mb ingestion tool
+- [x] ~~pg_notify listener for reindexing~~ We use native rust mpsc channel
+- [x] preindexing image and link transformation
+- [ ] implement `includeTracks` param using meilisearch `attributesToRetrieve`
+- [ ] setup ranking on meilisearch indexes
+- [ ] implement /recent endpoints
+- [x] Distribute docker multiarch image
+- [x] Helm charts ([here](https://github.com/lucas-dclrcq/homelabitty/blob/a1fcd5a61ad70eb1b98036282c17a83677e853db/kubernetes/apps/media/metadada/app/helmrelease.yaml))
+- [x] implement Musicbrainz Live Data Feed ingestion
+- [ ] Automatic schema update (easy to implement)
+- [ ] Distribute the musicbrainz ingestion tool as a single binary (as an alternative to mbslave)
+
 ## Licence
 
 All the code in this repository is released under the GNU General Public License, for more information take a look at
