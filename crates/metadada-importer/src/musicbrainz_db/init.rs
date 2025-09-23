@@ -255,11 +255,10 @@ impl MbLight {
             .filter(|line| !line.trim_start().starts_with('\\'))
             .collect::<Vec<_>>()
             .join("\n");
-
-        sqlx::raw_sql(&sql).execute(&self.db).await?;
         sqlx::query("SET search_path TO musicbrainz, public")
             .execute(&self.db)
             .await?;
+        sqlx::raw_sql(&sql).execute(&self.db).await?;
 
         Ok(())
     }
