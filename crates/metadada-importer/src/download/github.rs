@@ -5,7 +5,6 @@ use std::fs;
 use tempfile::env::temp_dir;
 use tracing::error;
 
-#[cfg(feature = "progress")]
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
 pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
@@ -17,7 +16,6 @@ pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
     let local_dir = temp_dir();
     let local_dir = local_dir.join("musicbrainz-sql");
 
-    #[cfg(feature = "progress")]
     let mp = MultiProgress::new();
     download_dir(
         client,
@@ -26,12 +24,10 @@ pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
         repo.into(),
         path.into(),
         local_dir.clone(),
-        #[cfg(feature = "progress")]
         mp.clone(),
     )
     .await?;
 
-    #[cfg(feature = "progress")]
     mp.clear()?;
     Ok(local_dir)
 }
@@ -45,7 +41,7 @@ async fn download_dir(
     repo: String,
     path: String,
     local_path: PathBuf,
-    #[cfg(feature = "progress")] mp: MultiProgress,
+    mp: MultiProgress,
 ) -> Result<()> {
     fs::create_dir_all(&local_path)?;
 
@@ -57,10 +53,8 @@ async fn download_dir(
         .await?
         .items;
 
-    #[cfg(feature = "progress")]
     let len = contents.len() as u64;
 
-    #[cfg(feature = "progress")]
     let pb = {
         let pb = mp.add(ProgressBar::new(len));
         pb.set_style(
@@ -73,6 +67,7 @@ async fn download_dir(
             "Dir {}",
             local_path.file_name().unwrap_or_default().to_string_lossy()
         ));
+        pb
     };
 
     let mut files = vec![];
@@ -80,9 +75,7 @@ async fn download_dir(
         let item_path = local_path.join(&item.name);
         let client = client.clone();
 
-        #[cfg(feature = "progress")]
         let mp = mp.clone();
-        #[cfg(feature = "progress")]
         let pb = pb.clone();
 
         match item.r#type.as_str() {
@@ -94,17 +87,9 @@ async fn download_dir(
                 let local_path = item_path.clone();
 
                 Box::pin(download_dir(
-                    client,
-                    octocrab,
-                    owner,
-                    repo,
-                    path,
-                    local_path,
-                    #[cfg(feature = "progress")]
-                    mp,
+                    client, octocrab, owner, repo, path, local_path, mp,
                 ))
                 .await?;
-                #[cfg(feature = "progress")]
                 pb.inc(1);
             }
             "file" => {
@@ -114,14 +99,12 @@ async fn download_dir(
                         let bytes = client.get(&download_url).send().await?.bytes().await?;
                         tokio::fs::write(&file_path, &bytes).await?;
 
-                        #[cfg(feature = "progress")]
                         pb.inc(1);
                         anyhow::Ok(())
                     };
 
                     files.push(fut);
                 } else {
-                    #[cfg(feature = "progress")]
                     pb.inc(1);
                 }
             }
@@ -135,7 +118,6 @@ async fn download_dir(
             error!("Error: {}", e);
         }
     }
-    #[cfg(feature = "progress")]
     pb.finish_with_message("Download complete");
 
     Ok(())

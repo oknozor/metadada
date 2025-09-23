@@ -6,6 +6,7 @@ use crate::{MbLight, download::musicbrainz::MUSICBRAINZ_FTP, tar_helper::get_arc
 use anyhow::Context;
 use anyhow::Result;
 use bytes::Bytes;
+use indicatif::{ProgressBar, ProgressStyle};
 use sqlx::postgres::PgPoolCopyExt;
 use std::{fs, path::PathBuf};
 use tar::Entry;
@@ -151,7 +152,6 @@ impl MbLight {
                 match entry {
                     Ok(entry) => {
                         let path = entry.path()?;
-                        #[cfg(feature = "progress")]
                         let entry_size = entry.header().entry_size()?;
                         let name = path.to_string_lossy().into_owned();
 
@@ -170,7 +170,6 @@ impl MbLight {
                             continue;
                         }
 
-                        #[cfg(feature = "progress")]
                         let pb = {
                             let pb = ProgressBar::new(entry_size);
                             let style = ProgressStyle::default_bar()
@@ -179,9 +178,10 @@ impl MbLight {
                                             .progress_chars("#>-");
                             pb.set_style(style);
                             pb.set_message(table.to_string());
+                            pb
                         };
 
-                        self.pg_copy(entry, schema, table)
+                        self.pg_copy(entry, schema, table, pb)
                             .await
                             .context(format!("in {schema}.{table}"))?;
                     }
@@ -201,7 +201,7 @@ impl MbLight {
         mut entry: Entry<'_, impl Read>,
         schema: &str,
         table: &str,
-        #[cfg(feature = "progress")] pb: ProgressBar,
+        pb: ProgressBar,
     ) -> Result<(), anyhow::Error> {
         sqlx::query(&format!("ALTER TABLE {}.{} SET UNLOGGED", schema, table))
             .execute(&self.db)
@@ -231,13 +231,11 @@ impl MbLight {
                 .await
                 .context("Failed to send data chunk to Postgres")?;
 
-            #[cfg(feature = "progress")]
             pb.inc(n as u64);
         }
 
         sink.finish().await.context("Failed to close sink")?;
 
-        #[cfg(feature = "progress")]
         pb.set_message(format!("Committing on {schema}.{table}"));
         tx.commit().await.context("Failed to commit transaction")?;
         sqlx::query(&format!("ALTER TABLE {}.{} SET LOGGED", schema, table))
@@ -245,7 +243,6 @@ impl MbLight {
             .await
             .context("Failed to restore LOGGED on table")?;
 
-        #[cfg(feature = "progress")]
         pb.finish_with_message(format!("{schema}.{table} COPY done!"));
         Ok(())
     }

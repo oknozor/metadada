@@ -17,6 +17,7 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+use tracing_indicatif::IndicatifLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -39,7 +40,7 @@ pub enum Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    #[cfg(not(feature = "progress"))]
+    let indicatif_layer = IndicatifLayer::new();
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
@@ -47,14 +48,10 @@ async fn main() -> anyhow::Result<()> {
                     .into()
             }),
         ))
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_writer(indicatif_layer.get_stderr_writer()))
+        .with(indicatif_layer)
         .init();
 
-    #[cfg(feature = "progress")]
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer().with_writer(indicatif_layer.get_stderr_writer()))
-        .with(ProgressLayer::new())
-        .init();
     let config = Settings::get()?;
 
     info!("Connecting to musicbrainz database");

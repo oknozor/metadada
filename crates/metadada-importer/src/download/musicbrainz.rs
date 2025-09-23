@@ -6,8 +6,8 @@ use std::{
 use crate::{MbLight, error::ReplicationError};
 use anyhow::Result;
 use futures_util::StreamExt;
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::StatusCode;
-use tracing::info;
 
 pub const MUSICBRAINZ_FTP: &str = "http://ftp.musicbrainz.org/pub/musicbrainz/data/fullexport";
 
@@ -35,13 +35,8 @@ impl MbLight {
             return Err(ReplicationError::NotFound);
         }
 
-        #[cfg(not(feature = "progress"))]
-        info!("Downloading {}", url);
-
-        #[cfg(feature = "progress")]
         let total_size = response.content_length().unwrap_or(0);
 
-        #[cfg(feature = "progress")]
         let pb = {
             let pb = ProgressBar::new(total_size);
             pb.set_style(
@@ -56,16 +51,12 @@ impl MbLight {
 
         let mut writer = BufWriter::with_capacity(8 * 1024 * 1024, tmpfile);
         let mut stream = response.bytes_stream();
-        #[cfg(feature = "progress")]
         let mut buffered_progress: u64 = 0;
-
-        #[cfg(feature = "progress")]
         let update_interval: u64 = 256 * 1024;
 
         while let Some(chunk) = stream.next().await {
             let data = chunk?;
             writer.write_all(&data)?;
-            #[cfg(feature = "progress")]
             {
                 buffered_progress += data.len() as u64;
                 if buffered_progress >= update_interval {
@@ -75,7 +66,6 @@ impl MbLight {
             }
         }
 
-        #[cfg(feature = "progress")]
         {
             if buffered_progress > 0 {
                 pb.inc(buffered_progress);

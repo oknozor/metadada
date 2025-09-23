@@ -13,8 +13,6 @@ Note that indexing time may vary depending on your hardware.
 The whole initialization took about 2h hour on my 64G RAM/12 cores desktop.
 Fortunately many things can still be improved and we expect to reduce it further.
 
-Also be aware that automatic update using the [MusicBrainz Live Data Feed](https://musicbrainz.org/doc/Live_Data_Feed) is not working yet. I should be there soon.
-
 ## Running locally
 
 ### Prerequisites
