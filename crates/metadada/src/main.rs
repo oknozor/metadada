@@ -39,6 +39,7 @@ pub enum Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    #[cfg(not(feature = "progress"))]
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
@@ -49,6 +50,11 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    #[cfg(feature = "progress")]
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_writer(indicatif_layer.get_stderr_writer()))
+        .with(ProgressLayer::new())
+        .init();
     let config = Settings::get()?;
 
     info!("Connecting to musicbrainz database");
@@ -62,8 +68,14 @@ async fn main() -> anyhow::Result<()> {
     let (tx, rx) = tokio::sync::mpsc::channel(3);
     let mut mblight = MbLight::new(config.clone(), db.clone(), tx);
 
-    if !mblight.has_data("musicbrainz", "artist").await? {
-        mblight.init().await?;
+    match mblight.has_data("musicbrainz", "artist").await {
+        Ok(has_data) if !has_data => {
+            mblight.init().await?;
+        }
+        Err(_) => {
+            mblight.init().await?;
+        }
+        _ => {}
     }
 
     sqlx::migrate!("../../migrations").run(&db).await?;

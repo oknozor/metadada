@@ -259,7 +259,7 @@ impl MbLight {
             .collect::<Vec<_>>()
             .join("\n");
 
-        sqlx::query(&sql).execute(&self.db).await?;
+        sqlx::raw_sql(&sql).execute(&self.db).await?;
         sqlx::query("SET search_path TO musicbrainz, public")
             .execute(&self.db)
             .await?;

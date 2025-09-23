@@ -24,3 +24,10 @@ axum.workspace = true
 utoipa-axum.workspace = true
 utoipa-swagger-ui.workspace = true
 utoipa.workspace = true
+
+tracing-indicatif = {workspace = true, optional = true}
+indicatif = {workspace = true, optional = true}
+
+[features]
+default = []
+progress = ["indicatif", "tracing-indicatif"]
