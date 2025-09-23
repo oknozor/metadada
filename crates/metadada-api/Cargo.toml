@@ -1,0 +1,17 @@
+[package]
+name = "metadada-api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+metadada-db.workspace = true
+axum.workspace = true
+utoipa-axum.workspace = true
+utoipa.workspace = true
+axum-macros.workspace = true
+autometrics.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+meilisearch-sdk.workspace = true
+futures.workspace = true

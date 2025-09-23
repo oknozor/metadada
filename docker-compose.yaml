@@ -20,6 +20,7 @@ services:
       retries: 5
       start_period: 2s
       start_interval: 1s
+
   meilisearch:
     image: getmeili/meilisearch:latest
     container_name: meilisearch
@@ -27,22 +28,5 @@ services:
       - "7700:7700"
     environment:
       MEILI_MASTER_KEY: "masterKey123"
-    networks:
-      - meili_network
     volumes:
       - ./data/meili:/meili_data
-  meili_ui:
-    container_name: k_meili_ui
-    image: riccoxie/meilisearch-ui:latest
-    restart: always
-    networks:
-      - meili_network
-    ports:
-      - 7041:24900
-    environment:
-      SINGLETON_MODE: true
-      SINGLETON_HOST: 127.0.0.1:7700
-      SINGLETON_API_KEY: masterKey123
-
-networks:
-  meili_network:

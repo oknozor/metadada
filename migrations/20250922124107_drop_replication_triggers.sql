@@ -1,0 +1,2 @@
+DROP TRIGGER trg_replication_finished ON replication_control;
+DROP FUNCTION trg_replication_finished_fn;

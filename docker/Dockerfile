@@ -1,25 +1,25 @@
 FROM alpine AS arm-builder
-COPY ./target/armv7-unknown-linux-musleabihf/release/mbmeta /mbmeta
+COPY ./target/armv7-unknown-linux-musleabihf/release/metadada /metadada
 
 FROM alpine AS arm64-builder
-COPY ./target/aarch64-unknown-linux-gnu/release/mbmeta /mbmeta
+COPY ./target/aarch64-unknown-linux-gnu/release/metadada /metadada
 
 FROM alpine AS amd64-builder
-COPY ./target/x86_64-unknown-linux-musl/release/mbmeta /mbmeta
+COPY ./target/x86_64-unknown-linux-musl/release/metadada /metadada
 
 FROM ${TARGETARCH}-builder AS builder
 
 FROM alpine
 LABEL maintainer="Paul Delafosse <paul.delafosse@protonmail.com>"
 
-RUN addgroup -S mbmeta && adduser -S mbmeta -G mbmeta
-USER mbmeta
+RUN addgroup -S metadada && adduser -S metadada -G metadada
+USER metadada
 
-COPY --from=builder /mbmeta /usr/bin/mbmeta
+COPY --from=builder /metadada /usr/bin/metadada
 
 EXPOSE 3000
 
 COPY ./docker/entrypoint.sh /entrypoint.sh
 
-CMD ["mbmeta"]
+CMD ["metadada"]
 ENTRYPOINT ["/entrypoint.sh"]

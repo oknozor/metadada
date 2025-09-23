@@ -1,0 +1,27 @@
+[package]
+name = "metadada-importer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio.workspace = true
+tokio-util.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+config.workspace = true
+tempfile.workspace = true
+bzip2.workspace = true
+tar.workspace = true
+bytes.workspace = true
+sqlx.workspace = true
+metadada-settings.workspace = true
+tracing.workspace = true
+csv.workspace = true
+thiserror.workspace = true
+indicatif.workspace = true
+itertools.workspace = true
+
+octocrab = { version = "0.45.0", features = ["rustls"] }
+reqwest = { version = "0.12.23", default-features = false, features = ["stream" ,"rustls-tls"] }
