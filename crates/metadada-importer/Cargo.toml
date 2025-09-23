@@ -21,6 +21,7 @@ tracing.workspace = true
 csv.workspace = true
 thiserror.workspace = true
 indicatif.workspace = true
+itertools.workspace = true
 
 octocrab = "0.45.0"
 reqwest = { version = "0.12.23", features = ["stream" ,"rustls-tls"] }

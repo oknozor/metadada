@@ -1,45 +1,79 @@
 use serde_json::Value;
-use std::collections::BTreeMap;
+use sqlx::prelude::FromRow;
+use std::fmt;
 
-#[derive(Debug, serde::Deserialize)]
+use crate::MbLight;
+
+#[derive(FromRow, Debug)]
 pub struct PendingData {
-    seqid: i32,
     fulltable: String,
-    op: char,
-    xid: String,
-    olddata: String,
-    newdata: Option<String>,
+    op: Operation,
+    pub xid: i64,
+    olddata: Value,
+    newdata: Option<Value>,
+    keys: Vec<String>,
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct PendindingKey {
-    fulltable: String,
-    keys: String,
+#[derive(Debug)]
+enum Operation {
+    Delete,
+    Insert,
+    Update,
 }
 
-impl PendindingKey {
-    pub fn into_entry(self) -> (String, Vec<String>) {
-        (
-            self.fulltable,
-            self.keys
-                .split(',')
-                .map(|s| s.trim_matches(['{', '}']))
-                .map(String::from)
-                .collect(),
-        )
+impl From<i8> for Operation {
+    fn from(value: i8) -> Self {
+        match value as u8 as char {
+            'd' => Operation::Delete,
+            'i' => Operation::Insert,
+            'u' => Operation::Update,
+            _ => unreachable!("Invalid operation"),
+        }
+    }
+}
+impl fmt::Display for Operation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Operation::Delete => write!(f, "DELETE"),
+            Operation::Insert => write!(f, "INSERT"),
+            Operation::Update => write!(f, "UPDATE"),
+        }
     }
 }
 
 impl PendingData {
-    pub fn to_sql_inline(
-        &self,
-        pending_keys: &BTreeMap<String, Vec<String>>,
-    ) -> anyhow::Result<Option<String>> {
+    pub async fn all(db: &sqlx::PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as!(
+            Self,
+            r#"SELECT pd.xid,
+                   pd.tablename as fulltable,
+                   pd.op,
+                   pk.keys,
+                   pd.olddata,
+                   pd.newdata
+              FROM dbmirror2.pending_data pd
+              JOIN dbmirror2.pending_keys pk
+                ON pk.tablename = pd.tablename
+                 ORDER BY pd.xid, pd.seqid"#,
+        )
+        .fetch_all(db)
+        .await
+    }
+
+    pub async fn remove_by_xid(db: &sqlx::PgPool, xid: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(r#"DELETE FROM dbmirror2.pending_data WHERE xid = $1"#, xid)
+            .execute(db)
+            .await?;
+        Ok(())
+    }
+
+    pub fn to_sql_inline(&self) -> anyhow::Result<Option<String>> {
         let (schema, table) = self.split_table_schema();
         match self.op {
-            'i' => {
+            Operation::Insert => {
                 let obj = self
-                    .newdata()
+                    .newdata
+                    .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("missing data"))?;
                 let obj = obj.as_object().unwrap();
                 let col_names: Vec<&str> = obj.keys().map(|k| k.as_str()).collect();
@@ -50,63 +84,41 @@ impl PendingData {
                     col_values.join(", ")
                 )))
             }
-            'u' => {
-                let ids = pending_keys
-                    .get(&self.fulltable)
-                    .expect("missing pending key");
-
+            Operation::Update => {
                 let Some(set_clause) = self.get_set_clause()? else {
                     return Ok(None);
                 };
 
-                let where_clause = self.get_where_clause(ids)?;
+                let where_clause = self.get_where_clause()?;
 
                 Ok(Some(format!(
                     r#"UPDATE "{schema}"."{table}" SET {set_clause} WHERE {where_clause};"#,
                 )))
             }
-            'd' => {
-                let ids = pending_keys
-                    .get(&self.fulltable)
-                    .expect("missing pending key");
-
-                let where_clause = self.get_where_clause(ids)?;
+            Operation::Delete => {
+                let where_clause = self.get_where_clause()?;
 
                 Ok(Some(format!(
                     r#"DELETE FROM "{schema}"."{table}" WHERE {where_clause};"#,
                 )))
             }
-            _ => anyhow::bail!("Invalid operation: {}", self.op),
         }
     }
 
-    pub fn split_table_schema(&self) -> (&str, &str) {
+    fn split_table_schema(&self) -> (&str, &str) {
         let parts: Vec<&str> = self.fulltable.split('.').collect();
         (parts[0], parts[1])
     }
 
-    fn newdata(&self) -> Option<Value> {
-        self.newdata
-            .as_ref()
-            .map(|s| s.replace("\\\\", "\\"))
-            .and_then(|s| serde_json::from_str(&s).ok())
-    }
-
-    fn olddata(&self) -> Option<Value> {
-        let olddata = self.olddata.replace("\\\\", "\\");
-        serde_json::from_str(&olddata).ok()
-    }
-
-    fn get_where_clause(&self, ids: &[String]) -> anyhow::Result<String> {
+    fn get_where_clause(&self) -> anyhow::Result<String> {
         let old_obj = self
-            .olddata()
-            .ok_or_else(|| anyhow::anyhow!("missing data"))?;
-
-        let old_obj = old_obj.as_object().unwrap();
+            .olddata
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("invalid data"))?;
 
         let where_clause: Vec<String> = old_obj
             .iter()
-            .filter(|(k, _)| ids.contains(k))
+            .filter(|(k, _)| self.sanitized_keys().contains(&k.as_str()))
             .map(|(k, v)| format!("{k} = {}", sql_literal(v)))
             .collect();
 
@@ -115,14 +127,16 @@ impl PendingData {
 
     fn get_set_clause(&self) -> anyhow::Result<Option<String>> {
         let new_obj = self
-            .newdata()
+            .newdata
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("missing newdata"))?;
+
         let new_obj = new_obj.as_object().unwrap();
 
         let old_obj = self
-            .olddata()
+            .olddata
+            .as_object()
             .ok_or_else(|| anyhow::anyhow!("missing data"))?;
-        let old_obj = old_obj.as_object().unwrap();
 
         let mut changes = Vec::new();
 
@@ -141,6 +155,13 @@ impl PendingData {
         }
 
         Ok(Some(changes.join(", ")))
+    }
+
+    fn sanitized_keys(&self) -> Vec<&str> {
+        self.keys
+            .iter()
+            .map(|key| key.trim_matches(['{', '}']))
+            .collect()
     }
 }
 
@@ -166,17 +187,19 @@ fn sql_literal(val: &serde_json::Value) -> String {
         }
     }
 }
-pub fn sort_pending_data(data: Vec<PendingData>) -> Vec<PendingData> {
-    let mut data = data;
-    data.sort_by(|a, b| {
-        let xid_cmp = a.xid.cmp(&b.xid);
-        if xid_cmp != std::cmp::Ordering::Equal {
-            xid_cmp
-        } else {
-            a.seqid.cmp(&b.seqid)
-        }
-    });
-    data
+
+impl MbLight {
+    pub async fn truncate_pending_data(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!(r#"TRUNCATE TABLE dbmirror2.pending_data"#,)
+            .execute(&self.db)
+            .await?;
+
+        sqlx::query!(r#"TRUNCATE TABLE dbmirror2.pending_keys"#,)
+            .execute(&self.db)
+            .await?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -206,21 +229,15 @@ mod tests {
         });
 
         let pd = PendingData {
-            seqid: 299795840,
             fulltable: "musicbrainz.release_group_meta".to_string(),
-            op: 'u',
-            xid: "2266759644".to_string(),
-            olddata: olddata.to_string(),
-            newdata: Some(newdata.to_string()),
+            op: Operation::Update,
+            xid: 2266759644,
+            olddata: olddata,
+            newdata: Some(newdata),
+            keys: vec!["id".to_string()],
         };
 
-        let mut pk = BTreeMap::new();
-        pk.insert(
-            "musicbrainz.release_group_meta".to_string(),
-            vec!["id".to_string()],
-        );
-
-        let query = pd.to_sql_inline(&pk)?;
+        let query = pd.to_sql_inline()?;
 
         assert!(query.is_none());
         Ok(())

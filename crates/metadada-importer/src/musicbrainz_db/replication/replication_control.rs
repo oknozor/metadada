@@ -21,9 +21,8 @@ impl ReplicationControl {
 
     pub async fn update(self, db: &PgPool) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "UPDATE replication_control SET current_replication_sequence = $1, last_replication_date = $2",
+            "UPDATE replication_control SET current_replication_sequence = $1, last_replication_date = NOW()",
             self.next_replication_sequence(),
-            Utc::now()
         )
         .execute(db)
         .await?;

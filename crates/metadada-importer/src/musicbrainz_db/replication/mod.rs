@@ -1,22 +1,20 @@
-use std::{collections::BTreeMap, io::Read};
+use std::io::Read;
 
 use crate::{
     MbLight,
     error::ReplicationError,
     musicbrainz_db::replication::{
-        pending_data::{PendindingKey, PendingData, sort_pending_data},
-        replication_control::ReplicationControl,
+        pending_data::PendingData, replication_control::ReplicationControl,
     },
     tar_helper::get_archive,
 };
 use anyhow::anyhow;
-use sqlx::{
-    PgPool,
-    types::chrono::{DateTime, Utc},
-};
+use indicatif::ProgressBar;
+use itertools::Itertools;
+use sqlx::types::chrono::{DateTime, Utc};
 use tempfile::NamedTempFile;
 use tokio::time;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 mod pending_data;
 mod replication_control;
@@ -40,24 +38,18 @@ impl MbLight {
         }
     }
 
-    pub async fn save_next_sequence(&self, seq: i32, db: &PgPool) -> sqlx::Result<()> {
-        sqlx::query!(
-            r#"
-            UPDATE replication_control
-            SET
-                current_replication_sequence = $1,
-                last_replication_date = NOW()
-            "#,
-            seq
-        )
-        .execute(db)
-        .await?;
-
-        Ok(())
-    }
-
     pub async fn apply_pending_replication(&self) -> Result<(), ReplicationError> {
+        let remains = PendingData::all(&self.db).await?;
+        if !remains.is_empty() {
+            let replication_control = ReplicationControl::get(&self.db).await?;
+            info!("Applying unfinished replication packet");
+            self.apply_pending_data().await?;
+            info!("Replication finished");
+            replication_control.update(&self.db).await?;
+        }
+
         let replication_control = ReplicationControl::get(&self.db).await?;
+
         if let Some(next_replication_sequence) = replication_control.next_replication_sequence() {
             let last_replication_date = replication_control
                 .last_replication_date
@@ -84,116 +76,120 @@ impl MbLight {
                 next_replication_sequence
             );
             let mut archive = get_archive(tmpfile.path())?;
-            let mut pending_data = vec![];
-            let mut pending_keys = BTreeMap::new();
+
             for entry in archive.entries()? {
-                match entry {
-                    Ok(mut entry) => {
-                        let path = entry.path()?;
-                        let filename = path.as_ref().file_name().and_then(|f| f.to_str());
-                        info!("processing {}", filename.unwrap_or("unknown"));
-                        match filename {
-                            Some("pending_data") => {
-                                let reader = csv::ReaderBuilder::new()
-                                    .delimiter(b'\t')
-                                    .has_headers(false)
-                                    .from_reader(entry);
-
-                                let mut reader = reader;
-
-                                for result in reader.deserialize() {
-                                    let record: PendingData = result?;
-                                    pending_data.push(record);
-                                }
-                            }
-                            Some("pending_keys") => {
-                                let reader = csv::ReaderBuilder::new()
-                                    .delimiter(b'\t')
-                                    .has_headers(false)
-                                    .from_reader(entry);
-
-                                let mut reader = reader;
-
-                                for result in reader.deserialize() {
-                                    let record: PendindingKey = result?;
-                                    let (fulltable, keys) = record.into_entry();
-                                    pending_keys.insert(fulltable, keys);
-                                }
-                            }
-                            Some("REPLICATION_SEQUENCE") => {
-                                let mut replication_sequence = String::new();
-                                let _ = entry.read_to_string(&mut replication_sequence);
-                                let replication_sequence = replication_sequence.trim();
-                                let replication_sequence = replication_sequence.parse::<i32>()?;
-                                if replication_sequence != next_replication_sequence {
-                                    tracing::error!(
-                                        "Replication sequence mismatch: expected {}, got {}",
-                                        next_replication_sequence,
-                                        replication_sequence
-                                    );
-                                }
-                            }
-                            Some("SCHEMA_SEQUENCE") => {
-                                let mut schema_sequence = String::new();
-                                let _ = entry.read_to_string(&mut schema_sequence)?;
-                                let schema_sequence = schema_sequence.trim();
-                                let schema_sequence = schema_sequence.parse::<i32>()?;
-                                if !replication_control.schema_sequence_match(schema_sequence) {
-                                    error!(
-                                        "Schema sequence mismatch: expected {}, got {}",
-                                        replication_control
-                                            .current_schema_sequence
-                                            .unwrap_or_default(),
-                                        schema_sequence
-                                    );
-                                }
-                            }
-                            Some("TIMESTAMP") => {
-                                extract_timestamp(entry)?;
-                            }
-                            _ => {}
-                        }
-                    }
-                    Err(err) => {
-                        error!("Error skipping archive entry: {err}");
-                    }
-                }
+                self.process_replication_entry(
+                    &replication_control,
+                    entry,
+                    next_replication_sequence,
+                )
+                .await?;
             }
 
-            pending_data.retain(|p| {
-                let (schema, table) = p.split_table_schema();
-                !self.config.schema.should_skip(schema) && !self.config.tables.should_skip(table)
-            });
-
-            let pending_data = sort_pending_data(pending_data);
-            self.apply_replication(&pending_data, &pending_keys).await?;
-            info!("replication finished, sleeping");
+            self.apply_pending_data().await?;
+            info!("replication finished");
             replication_control.update(&self.db).await?;
         }
 
         Ok(())
     }
 
-    async fn apply_replication(
+    async fn process_replication_entry(
         &self,
-        pending_data: &[PendingData],
-        pending_keys: &BTreeMap<String, Vec<String>>,
-    ) -> anyhow::Result<()> {
-        let mut tx = self.db.begin().await?;
-        info!("processing {} pending data", pending_data.len());
-        for data in pending_data {
-            match data.to_sql_inline(pending_keys) {
-                Ok(Some(query)) => {
-                    sqlx::query(&query).execute(&mut *tx).await?;
+        replication_control: &ReplicationControl,
+        entry: Result<tar::Entry<'_, impl Read>, std::io::Error>,
+        next_replication_sequence: i32,
+    ) -> Result<(), ReplicationError> {
+        match entry {
+            Ok(mut entry) => {
+                let path = entry.path()?;
+                let filename = path.as_ref().file_name().and_then(|f| f.to_str());
+                debug!("processing {}", filename.unwrap_or("unknown"));
+                match filename {
+                    Some("pending_data") => {
+                        let pb = ProgressBar::new(entry.size());
+                        self.pg_copy(entry, "dbmirror2", "pending_data", pb).await?;
+                    }
+                    Some("pending_keys") => {
+                        let pb = ProgressBar::new(entry.size());
+                        self.pg_copy(entry, "dbmirror2", "pending_keys", pb).await?;
+                    }
+                    Some("REPLICATION_SEQUENCE") => {
+                        let mut replication_sequence = String::new();
+                        let _ = entry.read_to_string(&mut replication_sequence);
+                        let replication_sequence = replication_sequence.trim();
+                        let replication_sequence = replication_sequence.parse::<i32>()?;
+                        if replication_sequence != next_replication_sequence {
+                            return Err(ReplicationError::SequenceMissmatch {
+                                expected: next_replication_sequence,
+                                got: replication_sequence,
+                            });
+                        }
+                    }
+                    Some("SCHEMA_SEQUENCE") => {
+                        let mut schema_sequence = String::new();
+                        let _ = entry.read_to_string(&mut schema_sequence)?;
+                        let schema_sequence = schema_sequence.trim();
+                        let schema_sequence = schema_sequence.parse::<i32>()?;
+                        if !replication_control.schema_sequence_match(schema_sequence) {
+                            return Err(ReplicationError::SchemaMissmatch {
+                                expected: replication_control
+                                    .current_replication_sequence
+                                    .unwrap_or_default(),
+                                got: schema_sequence,
+                            });
+                        }
+                    }
+                    Some("TIMESTAMP") => {
+                        extract_timestamp(entry)?;
+                    }
+                    _ => {}
                 }
-                Err(e) => {
-                    error!("Failed to process pending data: {data:?}");
-                    return Err(e)?;
-                }
-                Ok(None) => {}
             }
+            Err(err) => {
+                error!("Error skipping archive entry: {err}");
+            }
+        };
+
+        Ok(())
+    }
+
+    async fn apply_pending_data(&self) -> anyhow::Result<()> {
+        let pending_data = PendingData::all(&self.db).await?;
+        info!("Processing {} pending data ...", pending_data.len());
+
+        let pb = indicatif::ProgressBar::new(pending_data.len() as u64);
+        pb.set_style(
+            indicatif::ProgressStyle::default_bar()
+                .template("[{bar:40.cyan/blue}] {pos}/{len} ({eta}) - {msg}")?
+                .progress_chars("#>-"),
+        );
+
+        let chunked_data = pending_data.into_iter().chunk_by(|data| data.xid.clone());
+
+        for (xid, group) in chunked_data.into_iter() {
+            let mut tx = self.db.begin().await?;
+            for data in group {
+                match data.to_sql_inline() {
+                    Ok(Some(query)) => {
+                        sqlx::query(&query).execute(&mut *tx).await?;
+                    }
+                    Err(e) => {
+                        error!("Failed to process pending data: {data:?}");
+                        pb.finish_and_clear();
+                        return Err(e);
+                    }
+                    Ok(None) => {}
+                }
+                pb.inc(1);
+            }
+            pb.set_message("Committing ...");
+            tx.commit().await?;
+            pb.set_message(format!("Removing pending data for xid {}", xid));
+            PendingData::remove_by_xid(&self.db, xid).await?;
         }
-        tx.commit().await?;
+        self.truncate_pending_data().await?;
+        pb.finish_with_message("Replication completed");
         Ok(())
     }
 }
@@ -202,7 +198,7 @@ fn extract_timestamp(mut entry: impl std::io::Read) -> anyhow::Result<()> {
     let mut date_str = String::new();
     entry.read_to_string(&mut date_str)?;
     let date_str = date_str.trim();
-    info!("raw timestamp: {:?}", date_str);
+    debug!("Raw timestamp: {:?}", date_str);
 
     // Append ":00" to make timezone compatible with %:z
     let date_str = if date_str.ends_with("+00") || date_str.ends_with("-00") {
@@ -213,6 +209,6 @@ fn extract_timestamp(mut entry: impl std::io::Read) -> anyhow::Result<()> {
 
     let date = DateTime::parse_from_str(&date_str, "%Y-%m-%d %H:%M:%S%.f%:z")?.with_timezone(&Utc);
     let date = date.format("%Y-%m-%d %H:%M:%S");
-    info!("replication packet emitted at: {date}");
+    info!("Replication packet emitted at: {date}");
     Ok(())
 }

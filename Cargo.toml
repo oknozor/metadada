@@ -46,6 +46,7 @@ bzip2 = "0.4"
 tar = "0.4"
 tempfile = "3"
 bytes = "1"
+itertools = "0.14"
 
 indicatif = { version = "0.18", features = ["tokio"] }
 tracing-indicatif = { version = "0.3.13"  }

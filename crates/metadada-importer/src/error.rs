@@ -19,4 +19,8 @@ pub enum ReplicationError {
     Send(#[from] tokio::sync::mpsc::error::SendError<()>),
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
+    #[error("Replication sequence missmatch, expected {expected} but got {got}")]
+    SequenceMissmatch { expected: i32, got: i32 },
+    #[error("Replication schema missmatch, expected {expected} but got {got}")]
+    SchemaMissmatch { expected: i32, got: i32 },
 }
