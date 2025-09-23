@@ -105,7 +105,7 @@ impl PendingData {
         }
     }
 
-    fn split_table_schema(&self) -> (&str, &str) {
+    pub fn split_table_schema(&self) -> (&str, &str) {
         let parts: Vec<&str> = self.fulltable.split('.').collect();
         (parts[0], parts[1])
     }
