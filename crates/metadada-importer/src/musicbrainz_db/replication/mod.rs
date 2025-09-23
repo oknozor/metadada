@@ -21,6 +21,7 @@ mod replication_control;
 
 impl MbLight {
     pub async fn apply_all_pending_replication(&self) -> Result<(), ReplicationError> {
+        self.drop_tablecheck().await?;
         loop {
             match self.apply_pending_replication().await {
                 Ok(_) => {}
@@ -183,6 +184,15 @@ impl MbLight {
         }
         self.truncate_pending_data().await?;
         pb.finish_with_message("Replication completed");
+        Ok(())
+    }
+
+    async fn drop_tablecheck(&self) -> anyhow::Result<()> {
+        sqlx::query!(
+            "ALTER TABLE dbmirror2.pending_data DROP CONSTRAINT IF EXISTS tablename_exists;"
+        )
+        .execute(&self.db)
+        .await?;
         Ok(())
     }
 }
