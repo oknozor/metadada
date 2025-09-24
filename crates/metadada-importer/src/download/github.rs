@@ -1,11 +1,12 @@
+use crate::progress::get_progress_bar;
 use anyhow::Result;
 use futures_util::future::join_all;
+use indicatif::MultiProgress;
 use octocrab::Octocrab;
 use std::fs;
+use std::path::PathBuf;
 use tempfile::env::temp_dir;
 use tracing::error;
-
-use indicatif::MultiProgress;
 
 pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
     let octocrab = Octocrab::builder().build()?;
@@ -32,9 +33,31 @@ pub async fn download_musicbrainz_sql() -> Result<PathBuf> {
     Ok(local_dir)
 }
 
-use std::path::PathBuf;
+pub async fn download_schema_update(target_sequence: i32) -> Result<PathBuf> {
+    let octocrab = Octocrab::builder().build()?;
+    let client = reqwest::Client::new();
+    let owner = "metabrainz";
+    let repo = "musicbrainz-server";
+    let path = format!("admin/sql/update/schema-change/{}.all.sql", target_sequence);
+    let local_dir = temp_dir();
+    let local_dir = local_dir.join("musicbrainz-sql");
 
-use crate::progress::get_progress_bar;
+    let mp = MultiProgress::new();
+    let path_clone = PathBuf::from(&path);
+    download_dir(
+        client,
+        octocrab,
+        owner.into(),
+        repo.into(),
+        path,
+        local_dir.clone(),
+        mp.clone(),
+    )
+    .await?;
+
+    mp.clear()?;
+    Ok(path_clone)
+}
 
 async fn download_dir(
     client: reqwest::Client,

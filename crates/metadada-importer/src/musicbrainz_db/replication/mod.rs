@@ -2,6 +2,7 @@ use std::io::Read;
 
 use crate::{
     MbLight,
+    download::github::download_schema_update,
     error::ReplicationError,
     musicbrainz_db::replication::{
         pending_data::PendingData, replication_control::ReplicationControl,
@@ -132,7 +133,12 @@ impl MbLight {
                         let _ = entry.read_to_string(&mut schema_sequence)?;
                         let schema_sequence = schema_sequence.trim();
                         let schema_sequence = schema_sequence.parse::<i32>()?;
-                        if !replication_control.schema_sequence_match(schema_sequence) {
+                        if replication_control.is_next(schema_sequence) {
+                            info!("Downloading schema update");
+                            let path = download_schema_update(schema_sequence).await?;
+                            info!("Updating schema to version {}", schema_sequence);
+                            self.run_sql_file(path).await?;
+                        } else if !replication_control.schema_sequence_match(schema_sequence) {
                             return Err(ReplicationError::SchemaMissmatch {
                                 expected: replication_control
                                     .current_replication_sequence

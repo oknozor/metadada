@@ -1,5 +1,6 @@
 use crate::MbLight;
 use std::io::Read;
+use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -62,8 +63,8 @@ impl MbLight {
         Ok(())
     }
 
-    pub async fn run_sql_file(&self, path: &str) -> Result<()> {
-        info!("Executing SQL file: {}", path);
+    pub async fn run_sql_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        info!("Executing SQL file: {}", path.as_ref().display());
         let sql = fs::read_to_string(path)?;
         let sql = sql
             .lines()
