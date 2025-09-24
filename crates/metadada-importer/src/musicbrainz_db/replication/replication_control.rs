@@ -33,6 +33,10 @@ impl ReplicationControl {
         self.current_replication_sequence.map(|seq| seq + 1)
     }
 
+    pub fn is_next(&self, expected: i32) -> bool {
+        self.next_replication_sequence().map(|r| r + 1) == Some(expected)
+    }
+
     pub fn schema_sequence_match(&self, actual: i32) -> bool {
         self.current_schema_sequence == Some(actual)
     }
