@@ -1,5 +1,5 @@
 use serde_json::Value;
-use sqlx::prelude::FromRow;
+use sqlx::{Postgres, Transaction, prelude::FromRow};
 use std::fmt;
 
 use crate::MbLight;
@@ -60,11 +60,14 @@ impl PendingData {
         .await
     }
 
-    pub async fn remove_by_xid(db: &sqlx::PgPool, xid: i64) -> Result<(), sqlx::Error> {
+    pub async fn remove_by_xid(
+        mut tx: Transaction<'_, Postgres>,
+        xid: i64,
+    ) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
         sqlx::query!(r#"DELETE FROM dbmirror2.pending_data WHERE xid = $1"#, xid)
-            .execute(db)
+            .execute(&mut *tx)
             .await?;
-        Ok(())
+        Ok(tx)
     }
 
     pub fn to_sql_inline(&self) -> anyhow::Result<Option<String>> {

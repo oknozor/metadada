@@ -187,10 +187,11 @@ impl MbLight {
                 }
                 pb.inc(1);
             }
+            pb.set_message(format!("Removing pending data for xid {}", xid));
+            let tx = PendingData::remove_by_xid(tx, xid).await?;
             pb.set_message("Committing ...");
             tx.commit().await?;
-            pb.set_message(format!("Removing pending data for xid {}", xid));
-            PendingData::remove_by_xid(&self.db, xid).await?;
+            pb.finish_with_message("Done");
         }
         self.truncate_pending_data().await?;
         pb.finish_with_message("Replication completed");
