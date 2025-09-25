@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
             std::env::var("RUST_LOG").unwrap_or_else(|_| {
-                "tower_http=debug,metadada=debug,mbeta-pipeline=debug,metadada_importer=info".into()
+                "tower_http=debug,metadada=debug,mbeta-pipeline=debug,musicbrainz-light=info".into()
             }),
         ))
         .with(tracing_subscriber::fmt::layer().with_writer(indicatif_layer.get_stderr_writer()))
