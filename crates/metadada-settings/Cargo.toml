@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+musicbrainz-light.workspace = true
 config.workspace = true
 serde.workspace = true
 once_cell.workspace = true

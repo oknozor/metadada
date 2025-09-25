@@ -5,10 +5,10 @@ use axum::{Extension, routing::get};
 use clap::{Parser, builder::PossibleValuesParser};
 use metadada_api::ApiDoc;
 use metadada_db::queryables::{album::Album, artist::Artist};
-use metadada_importer::MbLight;
 use metadada_meili::MeiliClient;
 use metadada_pipeline::Ingestor;
 use metadada_settings::Settings;
+use musicbrainz_light::MbLight;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{
     signal::unix::{SignalKind, signal},
@@ -62,7 +62,9 @@ async fn main() -> anyhow::Result<()> {
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
 
     let (tx, rx) = tokio::sync::mpsc::channel(3);
-    let mut mblight = MbLight::new(config.clone(), db.clone(), tx);
+    let mut mblight = MbLight::try_new(config.clone(), config.db_url().clone())
+        .await?
+        .with_sender(tx);
 
     match mblight.has_data("musicbrainz", "artist").await {
         Ok(has_data) if !has_data => {
@@ -87,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
 async fn serve(
     config: Settings,
     meili_client: MeiliClient,
-    mblight: MbLight,
+    mblight: MbLight<Settings>,
     db: PgPool,
     rx: Receiver<()>,
 ) -> anyhow::Result<()> {
@@ -139,7 +141,7 @@ async fn serve(
     });
     // TODO: pass cancellation token here
     let index_listener_task = index_listener.run();
-    let live_data_feed_task = mblight.apply_all_pending_replication();
+    let live_data_feed_task = mblight.sync(true);
 
     tokio::select! {
         result = server => {

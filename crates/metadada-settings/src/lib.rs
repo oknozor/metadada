@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use config::{Config, Environment, File};
+use musicbrainz_light::settings::MbLightSettingsExt;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -102,5 +103,51 @@ impl Settings {
             "postgres://{}:{}@{}:{}/{}",
             self.db.user, self.db.password, self.db.host, self.db.port, self.db.name
         )
+    }
+}
+
+impl MbLightSettingsExt for Settings {
+    fn db_user(&self) -> &str {
+        &self.db.user
+    }
+
+    fn db_password(&self) -> &str {
+        &self.db.password
+    }
+
+    fn db_host(&self) -> &str {
+        &self.db.host
+    }
+
+    fn db_port(&self) -> u16 {
+        self.db.port
+    }
+
+    fn db_name(&self) -> &str {
+        &self.db.name
+    }
+
+    fn table_keep_only(&self) -> &Vec<String> {
+        &self.tables.keep_only
+    }
+
+    fn schema_keep_only(&self) -> &Vec<String> {
+        &self.schema.keep_only
+    }
+
+    fn musicbrainz_url(&self) -> &str {
+        &self.musicbrainz.url
+    }
+
+    fn musicbrainz_token(&self) -> &str {
+        &self.musicbrainz.token
+    }
+
+    fn should_skip_table(&self, table: &str) -> bool {
+        self.tables.should_skip(table)
+    }
+
+    fn should_skip_schema(&self, schema: &str) -> bool {
+        self.schema.should_skip(schema)
     }
 }
