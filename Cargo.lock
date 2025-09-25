@@ -1918,9 +1918,9 @@ dependencies = [
 
 [[package]]
 name = "musicbrainz-light"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1fb62e660b5076e6cc1581a43e9894167102722f9cb434b260ea6cfa95748ff"
+checksum = "79ee8b04a60907e8eced2e5592f03cdbc1e031768848bcddf8f0c2d94855c402"
 dependencies = [
  "bytes",
  "bzip2",
