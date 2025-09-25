@@ -54,10 +54,6 @@ async fn main() -> anyhow::Result<()> {
     let config = Settings::get()?;
 
     info!("Connecting to musicbrainz database");
-    let db = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&config.db_url())
-        .await?;
 
     let meili_client = MeiliClient::new(&config.meili.url, &config.meili.api_key);
 
@@ -75,6 +71,11 @@ async fn main() -> anyhow::Result<()> {
         }
         _ => {}
     }
+
+    let db = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.db_url())
+        .await?;
 
     sqlx::migrate!("../../migrations").run(&db).await?;
 
