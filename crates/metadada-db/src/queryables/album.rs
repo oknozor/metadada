@@ -4,7 +4,7 @@ use crate::indexables::album::AlbumInfo;
 use crate::queryables::QueryAble;
 use crate::queryables::artist::Artist;
 use crate::{Data, Rating};
-use metadada_settings::ALBUM_BATCH_SIZE;
+use metadada_settings::Settings;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -147,7 +147,9 @@ impl QueryAble for Album {
     }
 
     fn batch_size() -> i64 {
-        *ALBUM_BATCH_SIZE
+        Settings::get()
+            .map(|s| s.sync.album_batch_size)
+            .unwrap_or(5_000)
     }
 }
 

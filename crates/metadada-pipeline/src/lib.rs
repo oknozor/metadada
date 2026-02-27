@@ -4,7 +4,54 @@ use indicatif::{ProgressBar, ProgressStyle};
 use metadada_db::{Data, queryables::QueryAble};
 use metadada_meili::{MeiliClient, Status};
 use sqlx::{PgPool, types::Uuid};
+use std::time::{Duration, Instant};
 use tracing::{error, info};
+
+/// Adaptive batch sizer that adjusts the batch size after each batch to keep
+/// each batch's total duration close to `target_duration`. The size is clamped
+/// between `min_size` and `max_size`.
+pub struct AdaptiveBatchSizer {
+    current: i64,
+    min_size: i64,
+    max_size: i64,
+    target_duration: Duration,
+}
+
+impl AdaptiveBatchSizer {
+    pub fn new(initial: i64, target_duration: Duration) -> Self {
+        Self {
+            current: initial,
+            min_size: (initial / 4).max(1),
+            max_size: initial * 4,
+            target_duration,
+        }
+    }
+
+    pub fn current(&self) -> i64 {
+        self.current
+    }
+
+    /// Call after each batch with the time it took. Adjusts `current` size
+    /// proportionally: new_size = current * (target / elapsed), clamped.
+    pub fn adjust(&mut self, elapsed: Duration) {
+        let elapsed_secs = elapsed.as_secs_f64().max(0.001);
+        let target_secs = self.target_duration.as_secs_f64();
+        let ratio = target_secs / elapsed_secs;
+        let new_size = ((self.current as f64 * ratio).round() as i64)
+            .clamp(self.min_size, self.max_size);
+
+        if new_size != self.current {
+            info!(
+                "Adaptive batch size: {} → {} (batch took {:.2}s, target {:.2}s)",
+                self.current,
+                new_size,
+                elapsed_secs,
+                target_secs,
+            );
+            self.current = new_size;
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Ingestor {
@@ -25,23 +72,33 @@ impl Ingestor {
             .progress_chars("#>-"),
         );
 
-        let stream = stream::unfold(last_seen_gid, |last_gid| async move {
-            let this = self.clone();
+        // batch_size() is the configured initial size; target 5 s per batch
+        let sizer =
+            AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
 
-            match T::query_all(last_gid, T::batch_size(), &this.db).await {
-                Ok(Data { items }) => {
-                    let items: Vec<T> = match items {
-                        Some(a) if !a.is_empty() => a.0,
-                        _ => return None,
-                    };
+        // We drive the stream sequentially for size feedback, then fan-out
+        // the ingest work with buffer_unordered.
+        let stream = stream::unfold(
+            (last_seen_gid, sizer),
+            |(last_gid, mut sizer)| async move {
+                let this = self.clone();
+                let t0 = Instant::now();
 
-                    let next_gid = items.last().map(|a| a.id());
+                match T::query_all(last_gid, sizer.current(), &this.db).await {
+                    Ok(Data { items }) => {
+                        let items: Vec<T> = match items {
+                            Some(a) if !a.is_empty() => a.0,
+                            _ => return None,
+                        };
 
-                    Some((Ok((this, items)), next_gid))
+                        sizer.adjust(t0.elapsed());
+                        let next_gid = items.last().map(|a| a.id());
+                        Some((Ok((this, items)), (next_gid, sizer)))
+                    }
+                    Err(e) => Some((Err(e), (last_gid, sizer))),
                 }
-                Err(e) => Some((Err(e), last_gid)),
-            }
-        });
+            },
+        );
 
         stream
             .map(|res| {
@@ -77,8 +134,13 @@ impl Ingestor {
     }
 
     pub async fn sync<T: QueryAble>(&self) -> Result<()> {
+        let mut sizer =
+            AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
+
         loop {
-            let Data { items } = T::query_unsynced(T::batch_size(), &self.db).await?;
+            let t0 = Instant::now();
+            let Data { items } =
+                T::query_unsynced(sizer.current(), &self.db).await?;
             let items = items.map(|items| items.0).unwrap_or_default();
 
             if items.is_empty() {
@@ -88,6 +150,7 @@ impl Ingestor {
             let ids: Vec<Uuid> = items.iter().map(|a| a.id()).collect();
             self.ingest(items).await?;
             T::update_syncs(&ids, &self.db).await?;
+            sizer.adjust(t0.elapsed());
         }
 
         Ok(())

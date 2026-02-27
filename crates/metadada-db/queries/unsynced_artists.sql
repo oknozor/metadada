@@ -1,5 +1,5 @@
 SELECT
-  json_agg(artist_data) AS "items: Json<Vec<Artist>>"
+  json_agg(artist_data) AS items
 FROM (
     SELECT
         artist.gid AS Id,

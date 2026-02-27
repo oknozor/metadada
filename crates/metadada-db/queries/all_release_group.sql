@@ -1,5 +1,5 @@
 SELECT
-  json_agg(album_data) AS "items: Json<Vec<Album>>"
+  json_agg(album_data) AS items
 FROM (
   SELECT
     release_group.gid AS Id,

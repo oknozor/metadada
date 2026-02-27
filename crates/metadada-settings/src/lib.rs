@@ -2,14 +2,7 @@ use std::path::PathBuf;
 
 use config::{Config, Environment, File};
 use musicbrainz_light::settings::MbLightSettingsExt;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
-
-pub static ARTIST_BATCH_SIZE: Lazy<i64> =
-    Lazy::new(|| Settings::get().unwrap().sync.artist_batch_size);
-
-pub static ALBUM_BATCH_SIZE: Lazy<i64> =
-    Lazy::new(|| Settings::get().unwrap().sync.album_batch_size);
 
 #[derive(Debug, Deserialize, Default, Clone)]
 pub struct Settings {

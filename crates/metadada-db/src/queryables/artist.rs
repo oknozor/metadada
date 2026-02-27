@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use metadada_settings::ARTIST_BATCH_SIZE;
+use metadada_settings::Settings;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -149,6 +149,8 @@ impl QueryAble for Artist {
     }
 
     fn batch_size() -> i64 {
-        *ARTIST_BATCH_SIZE
+        Settings::get()
+            .map(|s| s.sync.artist_batch_size)
+            .unwrap_or(10_000)
     }
 }
