@@ -7,14 +7,14 @@ use crate::{Data, Rating};
 use metadada_settings::ALBUM_BATCH_SIZE;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use sqlx::types::Json;
 use uuid::Uuid;
 
 pub async fn count_albums(db: &PgPool) -> Result<i64, sqlx::Error> {
-    let rec = sqlx::query!("SELECT COUNT(*) as count FROM release_group")
-        .fetch_one(db)
-        .await?;
-    Ok(rec.count.unwrap_or(0))
+    let rec: (Option<i64>,) =
+        sqlx::query_as("SELECT COUNT(*) as count FROM release_group")
+            .fetch_one(db)
+            .await?;
+    Ok(rec.0.unwrap_or(0))
 }
 
 pub async fn all_albums(
@@ -22,21 +22,29 @@ pub async fn all_albums(
     limit: i64,
     db: &PgPool,
 ) -> Result<Data<Album>, sqlx::Error> {
-    sqlx::query_file_as!(Data, "queries/all_release_group.sql", last_seen_gid, limit)
-        .fetch_one(db)
-        .await
+    sqlx::query_as::<_, Data<Album>>(include_str!(
+        "../../queries/all_release_group.sql"
+    ))
+    .bind(last_seen_gid)
+    .bind(limit)
+    .fetch_one(db)
+    .await
 }
 pub async fn unsynced_albums(limit: i64, db: &PgPool) -> Result<Data<Album>, sqlx::Error> {
-    sqlx::query_file_as!(Data, "queries/unsynced_release_group.sql", limit)
-        .fetch_one(db)
-        .await
+    sqlx::query_as::<_, Data<Album>>(include_str!(
+        "../../queries/unsynced_release_group.sql"
+    ))
+    .bind(limit)
+    .fetch_one(db)
+    .await
 }
 
 async fn unsynced_releases_count(db: &PgPool) -> sqlx::Result<i64> {
-    sqlx::query_scalar!("SELECT COUNT(*) FROM metadada.releases_sync WHERE sync IS FALSE")
-        .fetch_one(db)
-        .await
-        .map(|c| c.unwrap_or_default())
+    let (count,): (Option<i64>,) =
+        sqlx::query_as("SELECT COUNT(*) FROM metadada.releases_sync WHERE sync IS FALSE")
+            .fetch_one(db)
+            .await?;
+    Ok(count.unwrap_or_default())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -101,14 +109,14 @@ impl QueryAble for Album {
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>> {
         Box::pin(async move {
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 INSERT INTO metadada.releases_sync (id)
                 VALUES (UNNEST($1::uuid[]))
                 ON CONFLICT (id) DO NOTHING;
                 "#,
-                ids
             )
+            .bind(ids)
             .execute(db)
             .await?;
             Ok(())
@@ -120,14 +128,14 @@ impl QueryAble for Album {
         db: &'a PgPool,
     ) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'a>> {
         Box::pin(async move {
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 UPDATE metadada.releases_sync
                 SET sync = TRUE
                 WHERE id = ANY($1::uuid[])
                 "#,
-                ids
             )
+            .bind(ids)
             .execute(db)
             .await?;
             Ok(())

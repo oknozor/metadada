@@ -62,14 +62,20 @@ async fn main() -> anyhow::Result<()> {
         .await?
         .with_sender(tx);
 
-    match mblight.has_data("musicbrainz", "artist").await {
-        Ok(has_data) if !has_data => {
-            mblight.init().await?;
-        }
-        Err(_) => {
-            mblight.init().await?;
-        }
-        _ => {}
+    let db_initialized = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS (SELECT 1 FROM pg_ts_config WHERE cfgname = 'mb_simple')",
+    )
+    .fetch_one(
+        &PgPoolOptions::new()
+            .max_connections(1)
+            .connect(&config.db_url())
+            .await?,
+    )
+    .await
+    .unwrap_or(false);
+
+    if !db_initialized {
+        mblight.init().await?;
     }
 
     let db = PgPoolOptions::new()

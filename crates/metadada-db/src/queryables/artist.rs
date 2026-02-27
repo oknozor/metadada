@@ -6,7 +6,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{Data, QueryAble, Rating, indexables::artist::ArtistInfo};
-use sqlx::types::Json;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Artist {
@@ -37,10 +36,11 @@ pub struct AlbumLight {
 }
 
 pub async fn count_artists(db: &PgPool) -> Result<i64, sqlx::Error> {
-    let rec = sqlx::query!("SELECT COUNT(*) as count FROM artist")
-        .fetch_one(db)
-        .await?;
-    Ok(rec.count.unwrap_or(0))
+    let rec: (Option<i64>,) =
+        sqlx::query_as("SELECT COUNT(*) as count FROM artist")
+            .fetch_one(db)
+            .await?;
+    Ok(rec.0.unwrap_or(0))
 }
 
 pub async fn all_artists(
@@ -48,22 +48,26 @@ pub async fn all_artists(
     limit: i64,
     db: &PgPool,
 ) -> Result<Data<Artist>, sqlx::Error> {
-    sqlx::query_file_as!(Data, "queries/all_artists.sql", last_seen_gid, limit)
+    sqlx::query_as::<_, Data<Artist>>(include_str!("../../queries/all_artists.sql"))
+        .bind(last_seen_gid)
+        .bind(limit)
         .fetch_one(db)
         .await
 }
 
 pub async fn unsynced_artists(limit: i64, db: &PgPool) -> Result<Data<Artist>, sqlx::Error> {
-    sqlx::query_file_as!(Data, "queries/unsynced_artists.sql", limit)
+    sqlx::query_as::<_, Data<Artist>>(include_str!("../../queries/unsynced_artists.sql"))
+        .bind(limit)
         .fetch_one(db)
         .await
 }
 
 async fn unsynced_artists_count(db: &PgPool) -> sqlx::Result<i64> {
-    sqlx::query_scalar!("SELECT COUNT(*) FROM metadada.artists_sync WHERE sync IS FALSE")
-        .fetch_one(db)
-        .await
-        .map(|c| c.unwrap_or_default())
+    let (count,): (Option<i64>,) =
+        sqlx::query_as("SELECT COUNT(*) FROM metadada.artists_sync WHERE sync IS FALSE")
+            .fetch_one(db)
+            .await?;
+    Ok(count.unwrap_or_default())
 }
 
 impl QueryAble for Artist {

@@ -21,8 +21,7 @@ impl Ingestor {
         pb.set_style(
             ProgressStyle::with_template(
                 "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
-            )
-            .unwrap()
+            )?
             .progress_chars("#>-"),
         );
 
