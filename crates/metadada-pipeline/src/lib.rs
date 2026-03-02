@@ -37,16 +37,13 @@ impl AdaptiveBatchSizer {
         let elapsed_secs = elapsed.as_secs_f64().max(0.001);
         let target_secs = self.target_duration.as_secs_f64();
         let ratio = target_secs / elapsed_secs;
-        let new_size = ((self.current as f64 * ratio).round() as i64)
-            .clamp(self.min_size, self.max_size);
+        let new_size =
+            ((self.current as f64 * ratio).round() as i64).clamp(self.min_size, self.max_size);
 
         if new_size != self.current {
             info!(
                 "Adaptive batch size: {} → {} (batch took {:.2}s, target {:.2}s)",
-                self.current,
-                new_size,
-                elapsed_secs,
-                target_secs,
+                self.current, new_size, elapsed_secs, target_secs,
             );
             self.current = new_size;
         }
@@ -73,32 +70,28 @@ impl Ingestor {
         );
 
         // batch_size() is the configured initial size; target 5 s per batch
-        let sizer =
-            AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
+        let sizer = AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
 
         // We drive the stream sequentially for size feedback, then fan-out
         // the ingest work with buffer_unordered.
-        let stream = stream::unfold(
-            (last_seen_gid, sizer),
-            |(last_gid, mut sizer)| async move {
-                let this = self.clone();
-                let t0 = Instant::now();
+        let stream = stream::unfold((last_seen_gid, sizer), |(last_gid, mut sizer)| async move {
+            let this = self.clone();
+            let t0 = Instant::now();
 
-                match T::query_all(last_gid, sizer.current(), &this.db).await {
-                    Ok(Data { items }) => {
-                        let items: Vec<T> = match items {
-                            Some(a) if !a.is_empty() => a.0,
-                            _ => return None,
-                        };
+            match T::query_all(last_gid, sizer.current(), &this.db).await {
+                Ok(Data { items }) => {
+                    let items: Vec<T> = match items {
+                        Some(a) if !a.is_empty() => a.0,
+                        _ => return None,
+                    };
 
-                        sizer.adjust(t0.elapsed());
-                        let next_gid = items.last().map(|a| a.id());
-                        Some((Ok((this, items)), (next_gid, sizer)))
-                    }
-                    Err(e) => Some((Err(e), (last_gid, sizer))),
+                    sizer.adjust(t0.elapsed());
+                    let next_gid = items.last().map(|a| a.id());
+                    Some((Ok((this, items)), (next_gid, sizer)))
                 }
-            },
-        );
+                Err(e) => Some((Err(e), (last_gid, sizer))),
+            }
+        });
 
         stream
             .map(|res| {
@@ -134,13 +127,11 @@ impl Ingestor {
     }
 
     pub async fn sync<T: QueryAble>(&self) -> Result<()> {
-        let mut sizer =
-            AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
+        let mut sizer = AdaptiveBatchSizer::new(T::batch_size(), Duration::from_secs(5));
 
         loop {
             let t0 = Instant::now();
-            let Data { items } =
-                T::query_unsynced(sizer.current(), &self.db).await?;
+            let Data { items } = T::query_unsynced(sizer.current(), &self.db).await?;
             let items = items.map(|items| items.0).unwrap_or_default();
 
             if items.is_empty() {

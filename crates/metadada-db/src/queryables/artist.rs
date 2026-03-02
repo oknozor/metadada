@@ -36,10 +36,9 @@ pub struct AlbumLight {
 }
 
 pub async fn count_artists(db: &PgPool) -> Result<i64, sqlx::Error> {
-    let rec: (Option<i64>,) =
-        sqlx::query_as("SELECT COUNT(*) as count FROM artist")
-            .fetch_one(db)
-            .await?;
+    let rec: (Option<i64>,) = sqlx::query_as("SELECT COUNT(*) as count FROM artist")
+        .fetch_one(db)
+        .await?;
     Ok(rec.0.unwrap_or(0))
 }
 

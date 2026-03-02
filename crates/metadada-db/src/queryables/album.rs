@@ -10,10 +10,9 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn count_albums(db: &PgPool) -> Result<i64, sqlx::Error> {
-    let rec: (Option<i64>,) =
-        sqlx::query_as("SELECT COUNT(*) as count FROM release_group")
-            .fetch_one(db)
-            .await?;
+    let rec: (Option<i64>,) = sqlx::query_as("SELECT COUNT(*) as count FROM release_group")
+        .fetch_one(db)
+        .await?;
     Ok(rec.0.unwrap_or(0))
 }
 
@@ -22,21 +21,17 @@ pub async fn all_albums(
     limit: i64,
     db: &PgPool,
 ) -> Result<Data<Album>, sqlx::Error> {
-    sqlx::query_as::<_, Data<Album>>(include_str!(
-        "../../queries/all_release_group.sql"
-    ))
-    .bind(last_seen_gid)
-    .bind(limit)
-    .fetch_one(db)
-    .await
+    sqlx::query_as::<_, Data<Album>>(include_str!("../../queries/all_release_group.sql"))
+        .bind(last_seen_gid)
+        .bind(limit)
+        .fetch_one(db)
+        .await
 }
 pub async fn unsynced_albums(limit: i64, db: &PgPool) -> Result<Data<Album>, sqlx::Error> {
-    sqlx::query_as::<_, Data<Album>>(include_str!(
-        "../../queries/unsynced_release_group.sql"
-    ))
-    .bind(limit)
-    .fetch_one(db)
-    .await
+    sqlx::query_as::<_, Data<Album>>(include_str!("../../queries/unsynced_release_group.sql"))
+        .bind(limit)
+        .fetch_one(db)
+        .await
 }
 
 async fn unsynced_releases_count(db: &PgPool) -> sqlx::Result<i64> {
