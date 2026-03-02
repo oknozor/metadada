@@ -22,19 +22,78 @@ impl MeiliClient {
 
     pub async fn setup_artist_index(&self) -> Result<(), Error> {
         let artists = self.client.index(Artist::INDEX);
-        artists.set_filterable_attributes(["id", "oldids"]).await?;
+
         artists
-            .set_searchable_attributes(["artistname", "sortname"])
+            .set_ranking_rules([
+                "words",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness",
+                "rating.value:desc",
+            ])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
+        artists
+            .set_sortable_attributes(["rating.value"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
+        artists
+            .set_filterable_attributes(["id", "oldids", "genres", "type", "status"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
+        artists
+            .set_searchable_attributes(["artistname", "sortname", "artistaliases"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
             .await?;
 
         Ok(())
     }
+
     pub async fn setup_album_index(&self) -> Result<(), Error> {
         let albums = self.client.index(Album::INDEX);
-        albums.set_filterable_attributes(["id", "oldids"]).await?;
+
         albums
-            .set_searchable_attributes(["title", "aliases"])
+            .set_ranking_rules([
+                "words",
+                "typo",
+                "proximity",
+                "attribute",
+                "sort",
+                "exactness",
+                "rating.value:desc",
+                "releasedate:desc",
+            ])
+            .await?
+            .wait_for_completion(&self.client, None, None)
             .await?;
+
+        albums
+            .set_sortable_attributes(["rating.value", "releasedate"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
+        albums
+            .set_filterable_attributes(["id", "oldids", "genres", "type", "artistid", "artistids"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
+        albums
+            .set_searchable_attributes(["title", "aliases", "artists.artistname"])
+            .await?
+            .wait_for_completion(&self.client, None, None)
+            .await?;
+
         Ok(())
     }
 

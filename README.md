@@ -57,7 +57,7 @@ INSERT INTO Config (Key, Value)
 - [x] ~~pg_notify listener for reindexing~~ We use native rust mpsc channel
 - [x] preindexing image and link transformation
 - [ ] implement `includeTracks` param using meilisearch `attributesToRetrieve`
-- [ ] setup ranking on meilisearch indexes
+- [x] setup ranking on meilisearch indexes
 - [ ] implement /recent endpoints
 - [x] Distribute docker multiarch image
 - [x] Helm charts ([here](https://github.com/lucas-dclrcq/homelabitty/blob/a1fcd5a61ad70eb1b98036282c17a83677e853db/kubernetes/apps/media/metadada/app/helmrelease.yaml))
