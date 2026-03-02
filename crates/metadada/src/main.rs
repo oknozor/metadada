@@ -13,10 +13,11 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{
     signal::unix::{SignalKind, signal},
     sync::mpsc::Receiver,
+    time::{Duration, sleep},
 };
 use tokio_util::sync::CancellationToken;
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{error, info};
 use tracing_indicatif::IndicatifLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
@@ -148,7 +149,36 @@ async fn serve(
     });
     // TODO: pass cancellation token here
     let index_listener_task = index_listener.run();
-    let live_data_feed_task = mblight.sync(true);
+
+    // Start live data feed with exponential backoff on failure
+    let live_data_feed_task = async {
+        let mut retry_delay = Duration::from_secs(1);
+        let max_retry_delay = Duration::from_secs(60);
+
+        loop {
+            if token.is_cancelled() {
+                info!("Live data feed task cancelled, stopping...");
+                return Ok::<(), anyhow::Error>(());
+            }
+
+            match mblight.sync(true).await {
+                Ok(_) => {
+                    info!("Live data feed completed successfully");
+                    return Ok::<(), anyhow::Error>(());
+                }
+                Err(e) => {
+                    error!(
+                        "Live data feed failed: {}. Retrying in {:?}...",
+                        e, retry_delay
+                    );
+                    sleep(retry_delay).await;
+                    retry_delay = std::cmp::min(retry_delay * 2, max_retry_delay);
+                }
+            }
+        }
+    };
+
+    tokio::pin!(live_data_feed_task);
 
     tokio::select! {
         result = server => {
@@ -159,9 +189,12 @@ async fn serve(
             info!("Pg Listener shutdown: {:?}", result);
             result?;
         },
-        result = live_data_feed_task => {
+        result = &mut live_data_feed_task => {
             info!("Live Data Feed worker shutdown: {:?}", result);
-            result?;
+            // Don't propagate errors from live data feed task
+            if let Err(e) = result {
+                error!("Live data feed task failed: {}", e);
+            }
         },
         _ = token.cancelled() => {
             info!("Shutdown signal received");
